@@ -3,7 +3,7 @@ package modelservice.storage
 import akka.actor.{Actor, ActorLogging, ActorRef}
 
 /**
- * Created by cdgore on 6/16/15.
+ * Coordinate model storage and retrieval with client
  */
 class ModelBroker extends Actor with ActorLogging {
   import ModelBroker._
