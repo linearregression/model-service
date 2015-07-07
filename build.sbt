@@ -21,5 +21,6 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "2.2.2" % "test",
   "org.mockito" % "mockito-all" % "1.9.5" % "test",
   "org.scalanlp" %% "breeze" % "0.11.2",
-  "org.scalanlp" %% "breeze-natives" % "0.11.2"
+  "org.scalanlp" %% "breeze-natives" % "0.11.2",
+  "joda-time" % "joda-time" % "2.7"
 )
