@@ -1,96 +1,178 @@
 package modelservice.storage
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
+
+import akka.actor.SupervisorStrategy.Restart
+import akka.util.Timeout
+import akka.pattern.ask
+import akka.pattern.pipe
+import org.joda.time.DateTime
+import akka.actor._
 import akka.event.LoggingReceive
-import breeze.linalg.SparseVector
 import modelservice.core.HashFeatureManager
 import spray.http.{HttpEntity, HttpResponse}
+import spray.http.HttpHeaders._
+import spray.http.ContentTypes._
 
 /**
  * Stores and retrieves models
  */
 class ModelStorage extends Actor with ActorLogging {
   import ModelStorage._
+  import ParameterStorage._
 
   val models = ModelVault
 
-  log.info("Storage initialized")
+  var parameterStorage: Option[Map[String, ActorRef]] = None
+
+  override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 3,
+    withinTimeRange = 5.seconds) {
+    case _: ParameterStorage.StorageException => Restart
+  }
+
+  implicit val timeout: Timeout = 5.second
+  import context.dispatcher
+
+  def initParamStorage() = {
+    parameterStorage = Some(Map[String, ActorRef]())
+//    context watch(context actorOf(Props[ParameterStorage], name="ParameterStorage"))
+  }
+
+  override def preStart() = {
+    initParamStorage()
+    log.info("Storage initialized")
+  }
+
+  def parameterStorageFactory(key: String, featureManager: HashFeatureManager): ActorRef = {
+    context watch(
+      context actorOf(
+        Props(classOf[ParameterStorage], featureManager), name=s"ParameterStorage_$key"))
+  }
+
+  def getParams(paramStorageActor: Option[ActorRef], paramVersion: Option[String],
+                sender: ActorRef) = {
+    paramStorageActor match {
+      case Some(pActor) => {
+        paramVersion match {
+          case Some(pVersion) => {
+            pActor ? GetParams(pVersion) onComplete {// TODO: add onFailure
+              case Success(p) => sender ! p.asInstanceOf[ParameterStorage.Model]
+            }
+          }
+          case None => {
+            pActor ? GetLatestParams() onComplete {// TODO: add onFailure
+              case Success(p) => sender ! p.asInstanceOf[ParameterStorage.Model]
+            }
+          }
+        }
+      }
+      case None => ParameterStorage.Model(None, None)
+    }
+  }
+
+  def postFM(key: String, featureManager: HashFeatureManager, client: ActorRef): Unit = {
+    this.models.get(key) match {
+      case None => {
+        models.post(key, parameterStorageFactory(key, featureManager))
+        this.postFM(key, featureManager, client)
+      }
+      case Some(paramActor) => {
+        val paramStorageAck = paramActor ? ConfirmInit()
+        paramStorageAck onComplete {
+          case Success(p) => {
+            val paramTimes = p.asInstanceOf[AckParamStorage]
+            val createdAt = paramTimes.createdAt.toString
+            client ! HttpResponse(200, entity=HttpEntity(s"""{"model_namespace": "$key", "created_at": "$createdAt"}"""),
+              headers = List(`Content-Type`(`application/json`)))
+          }
+          case Failure(e) => log.info(e.getLocalizedMessage)
+        }
+      }
+    }
+  }
 
   def receive = LoggingReceive {
-    case Get(key, client) => {
+    case Get(modelKey, paramKey) => {
       log.info("ModelStorage received GET")
-      sender ! models.get(key)
+      val model = modelKey match {
+        case Some(mK) => models.get(mK)
+        case None => models.getLatest()
+      }
+      model match {
+        case Some(m) => {
+          val modelFuture = paramKey match {
+            case Some(pK) => m ? GetParams(pK)
+            case None => m ? GetLatestParams()
+          }
+          log.info(s"MODELREF: $m")
+          modelFuture pipeTo sender
+//          modelFuture onComplete {
+//            case Success(mod) => {
+//              val retrievedModel = mod.asInstanceOf[Model]
+////              log.info(s"RETRIEVED MODEL: $retrievedModel")
+//              sender ! retrievedModel
+//              log.info("****************** HI ******************")
+//            }
+//            case Failure(e) => {
+//              log.info(e.getLocalizedMessage)
+//              sender ! Model(None, None)
+//            }
+//          }
+        }
+        case None => {
+          log.info("Invalid model key")
+          sender ! Model(None, None)
+        }
+      }
+//      sender ! models.get(key)
     }
+
     case GetLatest() => {
       log.info("ModelStorage received GET")
       sender ! models.getLatest
     }
-    case Put(ModelEntry(key, value), client) => {
-      models.put(key, value)
-      client ! HttpResponse(entity=HttpEntity("Model stored with key: " + key.toString))
+
+    case Post(key, featureManager, client) => {
+      postFM(key, featureManager, client)
+    }
+
+    case Put(modelKey, modelParameters, client) => {
+      models.get(modelKey) match {
+        case Some(paramActor) => {
+          paramActor ! PutParams(modelParameters, client)
+        }
+        case None => client ! HttpResponse(entity=HttpEntity("Invalid model key"))
+      }
     }
   }
 }
 
 object ModelStorage {
-  final case class Model(weights: SparseVector[Double],
-                         featureManager: HashFeatureManager)
-  final case class ModelEntry(key: String, value: Model)
-  final case class Get(key: String, client: ActorRef)
+  import ParameterStorage._
+
+  final case class Get(modelKey: Option[String], paramKey: Option[String])
   final case class GetLatest()
-  final case class Put(entry: ModelEntry, client: ActorRef)
+  final case class Post(key: String, featureManager: HashFeatureManager, client: ActorRef)
+  final case class Put(modelKey: String, modelParameters: ParameterEntry, client: ActorRef)
+  final case class AckParamStorage(createdAt: DateTime, modifiedAt: DateTime)
   class StorageException(msg: String) extends RuntimeException(msg)
 }
 
 object ModelVault {
-  import ModelStorage._
-
-  private val kv = ModelLRU[String, Model]()
+  private var kv = Map[String, ActorRef]()
   private var lastAdded: String = _
 
-  def put(key: String, value: Model): Unit = synchronized {
-    kv.put(key, value)
+  def post(key: String, paramStorageActor: ActorRef) = synchronized {
+    kv = kv + (key -> paramStorageActor)
     lastAdded = key
   }
 
-  def get(key: String): Model = synchronized {
+  def get(key: String): Option[ActorRef] = synchronized {
     kv.get(key)
   }
 
-  def getLatest(): Model = synchronized {
+  def getLatest(): Option[ActorRef] = synchronized {
     kv.get(lastAdded)
-  }
-}
-
-object ModelLRU {
-  def apply[K, V](maxSize: Int = 16): java.util.LinkedHashMap[K, V] = {
-    new java.util.LinkedHashMap[K, V]((maxSize.toFloat * (4.0/3.0)).toInt, 0.75f, true) {
-      override def removeEldestEntry(eldest: java.util.Map.Entry[K, V]): Boolean = {
-        size() > maxSize
-      }
-    }
-  }
-}
-
-object ModelFactory {
-  import ModelBroker._
-  import ModelStorage._
-
-  def apply(basicModel: BasicModel) = {
-    basicModel match {
-      case BasicModel(BasicSparseVector(index, data, maxFeatures, _),
-      BasicFeatureManager(k, label, singleFeatures, quads)) => {
-        val weightsSparseVector = new SparseVector[Double](index, data, index.length, maxFeatures)
-        val featureManager = (new HashFeatureManager)
-          .withK(k)
-          .withLabel(label)
-          .withSingleFeatures(singleFeatures)
-        val featureManagerComplete = quads match {
-          case Some(q) => featureManager.withQuadraticFeatures(q)
-          case None => featureManager
-        }
-        Model(weightsSparseVector, featureManagerComplete)
-      }
-    }
   }
 }

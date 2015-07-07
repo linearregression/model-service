@@ -2,6 +2,7 @@ package modelservice.core
 
 import akka.actor._
 import modelservice.storage.ModelBroker
+import modelservice.storage.ModelBroker.StoreModelParameters
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import spray.http.HttpEntity
@@ -18,19 +19,28 @@ class ModelParser extends Actor with ActorLogging {
   }
 
   def receive = {
-    case ParsedModelAndStore(rec: HttpEntity, modelStorage: ActorRef, client: ActorRef) =>
+    case ParseModelAndStore(rec: HttpEntity, modelKey: Option[String], modelStorage: ActorRef, client: ActorRef) =>
       try {
         log.info("Received HttpEntity")
-        val basicModel = jsonToHashModel(parse(rec.asString).values.asInstanceOf[Map[String, Any]])
-        log.info("Parsed record!")
-        log.info(basicModel.toString)
+        val basicFeatureManager = jsonToFeatureManager(parse(rec.asString).values.asInstanceOf[Map[String, Any]])
+        log.info("Parsed feature manager!")
+        log.info(basicFeatureManager.toString)
 
         val modelBroker = context actorOf Props(new ModelBroker)
-        modelBroker ! StoreModel(basicModel, modelStorage, client)
-        context.stop(self)
+        modelKey match {
+          case Some(k) => modelBroker ! StoreFeatureManagerWithKey(FeatureManagerWithKey(k, basicFeatureManager), modelStorage, client)
+          case None => modelBroker ! StoreFeatureManager(basicFeatureManager, modelStorage, client)
+        }
+//        modelBroker ! StoreModel(basicFeatureManager, modelStorage, client)
+//        context.stop(self)
       } catch {
         case e: Exception => log.info(e.getLocalizedMessage)
       }
+    case ParseParametersAndStore(rec: HttpEntity, modelKey: String, paramKey: Option[String], modelStorage: ActorRef, client: ActorRef) => {
+      val basicModelParameters = jsonToModelParameters(parse(rec.asString).values.asInstanceOf[Map[String, Any]])
+      val modelBroker = context actorOf Props(new ModelBroker)
+      modelBroker ! StoreModelParameters(modelKey, paramKey, basicModelParameters, modelStorage, client)
+    }
     case _ => log.info("Cannot parse request")
   }
 
@@ -59,8 +69,29 @@ class ModelParser extends Actor with ActorLogging {
     val sparseModel = BasicSparseVector(modelIndex, modelData, modelMaxFeatures, modelNumFeatures)
     BasicModel(sparseModel, basicFeatureManager)
   }
+
+  def jsonToFeatureManager(rec: Map[String, Any]): BasicFeatureManager = {
+//    val featureManagerMap = simpleGetMap(rec, "feature_manager")
+    val k = rec.getOrElse("k", 0).asInstanceOf[BigInt].toInt
+    val label = rec.getOrElse("label", "").asInstanceOf[String]
+    val singleFeatures = rec.getOrElse("single_features", List[String]()).asInstanceOf[List[String]]
+    val quadFeatures = rec.getOrElse("quadratic_features", Seq[Seq[Seq[String]]]()).asInstanceOf[Seq[Seq[Seq[String]]]] match {
+      case x: Seq[Seq[Seq[String]]] if x.length > 0 => Some(x)
+      case _ => None
+    }
+    BasicFeatureManager(k, label, singleFeatures, quadFeatures)
+  }
+
+  def jsonToModelParameters(rec: Map[String, Any]): BasicSparseVector = {
+    val modelData = rec.getOrElse("data", List[Double]()).asInstanceOf[List[Double]].toArray
+    val modelIndex = rec.getOrElse("index", List[BigInt]()).asInstanceOf[List[BigInt]].toArray.map(_.toInt)
+    val modelMaxFeatures = rec.getOrElse("length", 0).asInstanceOf[BigInt].toInt
+    val modelNumFeatures = Some(modelIndex.length)
+    BasicSparseVector(modelIndex, modelData, modelMaxFeatures, modelNumFeatures)
+  }
 }
 
 object ModelParser {
-  case class ParsedModelAndStore(rec: HttpEntity, modelStorage: ActorRef, client: ActorRef)
+  case class ParseModelAndStore(rec: HttpEntity, modelKey: Option[String], modelStorage: ActorRef, client: ActorRef)
+  case class ParseParametersAndStore(rec: HttpEntity, modelKey: String, paramKey: Option[String], modelStorage: ActorRef, client: ActorRef)
 }

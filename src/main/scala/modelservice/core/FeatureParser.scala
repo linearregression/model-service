@@ -13,11 +13,10 @@ class FeatureParser extends Actor with ActorLogging {
   import VectorizeFeatures._
 
   def receive = {
-    case ParseFeatures(record: HttpEntity, modelStorage: ActorRef, client: ActorRef) =>
+    case ParseFeatures(record: HttpEntity, modelKey: Option[String], paramKey: Option[String], modelStorage: ActorRef, client: ActorRef) =>
       try {
         val parsedContext = FeaturesToVector(parse(record.asString).values.asInstanceOf[Map[String, String]],
-                                             modelStorage,
-                                             client)
+                                             modelKey, paramKey, modelStorage, client)
         log.info(parsedContext.toString)
         val vectorizeFeatures = context actorOf Props(new VectorizeFeatures)
         vectorizeFeatures ! parsedContext
@@ -29,5 +28,5 @@ class FeatureParser extends Actor with ActorLogging {
 }
 
 object FeatureParser {
-  case class ParseFeatures(record: HttpEntity, modelStorage: ActorRef, client: ActorRef)
+  case class ParseFeatures(record: HttpEntity, modelKey: Option[String], paramKey: Option[String], modelStorage: ActorRef, client: ActorRef)
 }
