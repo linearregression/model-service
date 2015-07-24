@@ -112,7 +112,6 @@ class ModelStorage extends Actor with ActorLogging {
 //              val retrievedModel = mod.asInstanceOf[Model]
 ////              log.info(s"RETRIEVED MODEL: $retrievedModel")
 //              sender ! retrievedModel
-//              log.info("****************** HI ******************")
 //            }
 //            case Failure(e) => {
 //              log.info(e.getLocalizedMessage)

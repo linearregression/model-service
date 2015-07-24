@@ -11,15 +11,17 @@ import spray.http.HttpEntity
 class FeatureParser extends Actor with ActorLogging {
   import FeatureParser._
   import VectorizeFeatures._
+  import TreePredictionActor._
 
   def receive = {
     case ParseFeatures(record: HttpEntity, modelKey: Option[String], paramKey: Option[String], modelStorage: ActorRef, client: ActorRef) =>
       try {
-        val parsedContext = FeaturesToVector(parse(record.asString).values.asInstanceOf[Map[String, String]],
-                                             modelKey, paramKey, modelStorage, client)
+        // Start prediction tree
+        val parsedContext = PredictTree(parse(record.asString).values.asInstanceOf[Map[String, Any]],
+          modelKey, paramKey, modelStorage, client)
         log.info(parsedContext.toString)
-        val vectorizeFeatures = context actorOf Props(new VectorizeFeatures)
-        vectorizeFeatures ! parsedContext
+        val treePrediction = context actorOf Props(new TreePredictionActor)
+        treePrediction ! parsedContext
       } catch {
         case e: Exception => log.info(e.getLocalizedMessage)
       }
