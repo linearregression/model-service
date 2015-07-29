@@ -1,6 +1,6 @@
 package modelservice.storage
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor._
 import breeze.linalg.SparseVector
 import modelservice.core.HashFeatureManager
 import modelservice.storage.ParameterStorage.ParameterEntry
@@ -60,6 +60,10 @@ object ModelBroker {
 
   final case class GetLatestModel(modelStorage: ActorRef)
   final case class GetModelByKey(key: String, modelStorage: ActorRef)
+
+  def createActor(actorRefFactory: ActorRefFactory): ActorRef = {
+    actorRefFactory actorOf Props(classOf[ModelBroker])
+  }
 }
 
 object ModelFactory {

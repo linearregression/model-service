@@ -3,6 +3,7 @@ package modelservice.core
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import modelservice.core.prediction.PredictActor
 import modelservice.storage.{ParameterStorage, ModelStorage}
 import spray.http.{HttpEntity, HttpResponse}
 

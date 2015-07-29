@@ -1,16 +1,13 @@
-package modelservice.core
+package modelservice.core.prediction
 
-import scala.concurrent.duration._
-import scala.concurrent.Future
-import scala.util.{Failure, Success}
-
-import akka.actor.{Props, ActorRef, Actor}
+import akka.actor.{Actor, Props}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
-
 import breeze.linalg.SparseVector
+import modelservice.core.prediction.TreePredictionActor.ValidModel
 
-import modelservice.core.TreePredictionActor.ValidModel
+import scala.concurrent.Future
+import scala.concurrent.duration._
 
 /**
  * Node actor in prediction tree

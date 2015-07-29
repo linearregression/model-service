@@ -1,6 +1,6 @@
-package modelservice.core
+package modelservice.core.prediction
 
-import akka.actor.{ActorRef, Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import breeze.linalg.SparseVector
 import org.json4s._
 import org.json4s.jackson.Serialization

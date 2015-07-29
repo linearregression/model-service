@@ -2,15 +2,17 @@ package modelservice.core
 
 import akka.actor._
 import modelservice.storage.ModelBroker
-import modelservice.storage.ModelBroker.StoreModelParameters
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import spray.http.HttpEntity
 
 /**
- * Parse models
+ * Parse Models
+ * @param createModelActor Create actor using current the context.  This should be the model broker in production or a
+ *                         probe actor for tests
  */
-class ModelParser extends Actor with ActorLogging {
+class ModelParser(createModelActor: (ActorRefFactory) => ActorRef = ModelBroker.createActor)
+  extends Actor with ActorLogging {
   import ModelBroker._
   import ModelParser._
 
@@ -26,19 +28,17 @@ class ModelParser extends Actor with ActorLogging {
         log.info("Parsed feature manager!")
         log.info(basicFeatureManager.toString)
 
-        val modelBroker = context actorOf Props(new ModelBroker)
+        val modelBroker = createModelActor(context)
         modelKey match {
           case Some(k) => modelBroker ! StoreFeatureManagerWithKey(FeatureManagerWithKey(k, basicFeatureManager), modelStorage, client)
           case None => modelBroker ! StoreFeatureManager(basicFeatureManager, modelStorage, client)
         }
-//        modelBroker ! StoreModel(basicFeatureManager, modelStorage, client)
-//        context.stop(self)
       } catch {
         case e: Exception => log.info(e.getLocalizedMessage)
       }
     case ParseParametersAndStore(rec: HttpEntity, modelKey: String, paramKey: Option[String], modelStorage: ActorRef, client: ActorRef) => {
       val basicModelParameters = jsonToModelParameters(parse(rec.asString).values.asInstanceOf[Map[String, Any]])
-      val modelBroker = context actorOf Props(new ModelBroker)
+      val modelBroker = createModelActor(context)
       modelBroker ! StoreModelParameters(modelKey, paramKey, basicModelParameters, modelStorage, client)
     }
     case _ => log.info("Cannot parse request")

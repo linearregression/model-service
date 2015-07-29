@@ -1,13 +1,11 @@
-package modelservice.core
+package modelservice.core.prediction
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
 import breeze.linalg.SparseVector
-import modelservice.core.TreePredictionNode.{PredictionResult, NodePredict}
-import modelservice.storage.ModelStorage
-import modelservice.storage.ParameterStorage
-import spray.http.{HttpEntity, HttpResponse}
+import modelservice.core.HashFeatureManager
+import modelservice.storage.{ModelStorage, ParameterStorage}
 import org.json4s._
 import org.json4s.jackson.Serialization
 import spray.http.{HttpEntity, HttpResponse}
@@ -21,10 +19,9 @@ import scala.util.{Failure, Success}
  */
 class TreePredictionActor extends Actor with ActorLogging {
   import ModelStorage._
-  import PredictActor._
-  import TreePredictionActor._
-  import TreePredictionNode.{PredictionResult, NodePredict}
   import ParameterStorage._
+  import TreePredictionActor._
+  import TreePredictionNode.{NodePredict, PredictionResult}
 
   implicit val timeout: Timeout = 5.second
   import context.dispatcher
@@ -103,4 +100,8 @@ class TreePredictionActor extends Actor with ActorLogging {
 object TreePredictionActor {
   case class PredictTree(parsedContext: Map[String, Any], modelKey: Option[String], paramKey: Option[String], modelStorage: ActorRef, client: ActorRef)
   case class ValidModel(weights: SparseVector[Double], hashFeatureManager: HashFeatureManager)
+
+  def createActor(actorRefFactory: ActorRefFactory): ActorRef = {
+    actorRefFactory actorOf Props(classOf[TreePredictionActor])
+  }
 }

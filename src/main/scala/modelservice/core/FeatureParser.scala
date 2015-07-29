@@ -1,16 +1,20 @@
 package modelservice.core
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor._
+import modelservice.core.prediction.{Prediction, TreePredictionActor}
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import spray.http.HttpEntity
 
 /**
  * Actor to parse features
+ * @param createPredictionActor Create actor using current the context.  This should be the prediction actor in
+ *                              production or a probe actor for tests.  Defaults to tree prediction
  */
-class FeatureParser extends Actor with ActorLogging {
+class FeatureParser(createPredictionActor: (ActorRefFactory) => ActorRef = TreePredictionActor.createActor)
+  extends Actor with ActorLogging {
   import FeatureParser._
-  import VectorizeFeatures._
+//  import VectorizeFeatures._
   import TreePredictionActor._
 
   def receive = {
@@ -19,9 +23,8 @@ class FeatureParser extends Actor with ActorLogging {
         // Start prediction tree
         val parsedContext = PredictTree(parse(record.asString).values.asInstanceOf[Map[String, Any]],
           modelKey, paramKey, modelStorage, client)
-        log.info(parsedContext.toString)
-        val treePrediction = context actorOf Props(new TreePredictionActor)
-        treePrediction ! parsedContext
+        val predictionActor = createPredictionActor(context)
+        predictionActor ! parsedContext
       } catch {
         case e: Exception => log.info(e.getLocalizedMessage)
       }
