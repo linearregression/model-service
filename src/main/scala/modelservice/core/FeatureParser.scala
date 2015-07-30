@@ -1,7 +1,7 @@
 package modelservice.core
 
 import akka.actor._
-import modelservice.core.prediction.{Prediction, TreePredictionActor}
+import modelservice.core.prediction.{PredictActor, TreePredictionActor}
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import spray.http.HttpEntity
