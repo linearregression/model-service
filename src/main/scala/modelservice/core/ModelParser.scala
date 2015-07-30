@@ -1,10 +1,11 @@
 package modelservice.core
 
 import akka.actor._
-import modelservice.storage.ModelBroker
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import spray.http.HttpEntity
+
+import modelservice.storage.ModelBroker
 
 /**
  * Parse Models

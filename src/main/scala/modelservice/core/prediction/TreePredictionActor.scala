@@ -1,21 +1,23 @@
 package modelservice.core.prediction
 
-import akka.actor._
-import akka.pattern.ask
-import akka.util.Timeout
-import breeze.linalg.SparseVector
-import modelservice.core.HashFeatureManager
-import modelservice.storage.{ModelStorage, ParameterStorage}
-import org.json4s._
-import org.json4s.jackson.Serialization
-import spray.http.{HttpEntity, HttpResponse}
-
-//import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
+import akka.actor._
+import akka.pattern.ask
+import akka.util.Timeout
+import spray.http.{HttpEntity, HttpResponse}
+import org.json4s._
+import org.json4s.jackson.Serialization
+import breeze.linalg.SparseVector
+
+import modelservice.core.HashFeatureManager
+import modelservice.storage.{ModelStorage, ParameterStorage}
+
 /**
- * Turn parsed features into sparse vectors
+ * Root for prediction on free variable trees
+ *
+ * Retrieves the appropriate model from storage and kicks off tree prediction
  */
 class TreePredictionActor extends Actor with ActorLogging {
   import ModelStorage._
@@ -23,7 +25,7 @@ class TreePredictionActor extends Actor with ActorLogging {
   import TreePredictionActor._
   import TreePredictionNode.{NodePredict, PredictionResult}
 
-  implicit val timeout: Timeout = 5.second
+  implicit val timeout: Timeout = 1.second
   import context.dispatcher
 
   implicit val formats = DefaultFormats
@@ -35,6 +37,11 @@ class TreePredictionActor extends Actor with ActorLogging {
     }
   }
 
+  /**
+   * Filter variable map for bound variables (ie variables that factor into the prediction but cannot be changed)
+   * @param varMap variable map
+   * @return map of bound variables
+   */
   def toBoundVars(varMap: Map[String, Any]): Map[String, String] = {
     varMap.flatMap(r =>
       r._2 match {
@@ -44,6 +51,11 @@ class TreePredictionActor extends Actor with ActorLogging {
     )
   }
 
+  /**
+   * Filter variable map for free variables (arguments to be chosen to optimize the objective function)
+   * @param varMap variable map
+   * @return map of free variables
+   */
   def toFreeVars(varMap: Map[String, Any]): Map[String, Any] = {
     varMap.flatMap(r =>
       r._2 match {
@@ -56,7 +68,10 @@ class TreePredictionActor extends Actor with ActorLogging {
 
   def receive = {
     case PredictTree(rec, modelKey, paramKey, modelStorage, client) => {
+      // Retrieve the model from model storage
       val model = modelStorage ? Get(modelKey, paramKey)
+
+      // Parse the free and bound variables from the parsed features
       val boundVariables = toBoundVars(rec)
       val freeVariables = toFreeVars(rec)
 
@@ -68,9 +83,11 @@ class TreePredictionActor extends Actor with ActorLogging {
 
               val validModel = ValidModel(weights, featureManager)
 
+              // Launch tree prediction
               val predictionFuture = (context actorOf Props(new TreePredictionNode)) ?
                 NodePredict(freeVariables, boundVariables, Map[String, String](), validModel)
 
+              // Collect predictions and serve to client
               predictionFuture onSuccess {
                 case results: Seq[PredictionResult] => {
                   val resultList = results.map(x =>
@@ -80,10 +97,6 @@ class TreePredictionActor extends Actor with ActorLogging {
                   client ! HttpResponse(200, entity=HttpEntity(Serialization.write(resultList)))
                 }
               }
-//
-//              val featureVector = featureManager.parseRow(rec)
-//              val predictActor = context actorOf Props(new PredictActor)
-//              predictActor ! Predict(weights, featureVector, client)
             }
             case _ => client ! HttpResponse(404, entity=HttpEntity("Invalid model and / or parameter set key"))
           }
@@ -98,7 +111,8 @@ class TreePredictionActor extends Actor with ActorLogging {
 }
 
 object TreePredictionActor {
-  case class PredictTree(parsedContext: Map[String, Any], modelKey: Option[String], paramKey: Option[String], modelStorage: ActorRef, client: ActorRef)
+  case class PredictTree(parsedContext: Map[String, Any], modelKey: Option[String], paramKey: Option[String],
+                         modelStorage: ActorRef, client: ActorRef)
   case class ValidModel(weights: SparseVector[Double], hashFeatureManager: HashFeatureManager)
 
   def createActor(actorRefFactory: ActorRefFactory): ActorRef = {
