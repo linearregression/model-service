@@ -101,9 +101,3 @@ class ModelServiceActor extends Actor with ActorLogging {
     }
   }
 }
-
-//object ModelServiceActor {
-//  case class Entity
-//}
-
-// curl -v -X POST http://127.0.0.1:8080/predict -d "{ \"property\" : \"value\" }"
