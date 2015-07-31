@@ -28,8 +28,14 @@ class TreePredictionNode extends Actor {
         val prediction = lrPredict(model.weights, featureVector.mapActiveValues(_.toDouble))
         sender() ! Seq(PredictionResult(leafVars, prediction))
       } else {
+        // Generate all the possible futures from this node (with cross products of any branches beginning here)
 
-        //  Generate all the possible futures from this node (with cross products of any branches beginning here)
+        // Flatten child nodes directly accessible from the current node. ie:
+        // {"color": ["red", "blue"], "shape": ["round", "square"], "publisher_id": {"abc123": { ... } ... }}
+        // becomes
+        // [[({"color": "red"}, {}), ({"color": "blue"}, {})],
+        //  [({"shape": "round"}, {}), ({"shape": "square"}, {})],
+        //  [({"publisher_id": "abc123"}, { ... })]]
         val nodeKV = childrenFreeVars.toSeq.flatMap(x =>
           x._2 match {
             case s: Map[String, Map[String, Any]] => Some(s.toSeq.map(t => ChildNodeMapKV(Map(x._1 -> t._1), t._2)))
@@ -38,15 +44,16 @@ class TreePredictionNode extends Actor {
           }
         )
 
-        val nodeCrossProduct = nodeKV.reduce(
-          (q1, q2) => for {
-            a <- q1
-            b <- q2
-          } yield ChildNodeMapKV(
-              a.flattenedKV ++ b.flattenedKV,
-              a.childrenKV ++ b.childrenKV
-            )
-        )
+        // Generate the cross product of attribute child nodes. ie:
+        // [[({"color": "red"}, {}), ({"color": "blue"}, {})],
+        //  [({"shape": "round"}, {}), ({"shape": "square"}, {})],
+        //  [({"publisher_id": "abc123"}, { ... })]]
+        // becomes
+        // [({"color": "red", "shape": "round", "publisher_id", "abc123"}, { ... }],
+        //  ({"color": "red", "shape": "square", "publisher_id", "abc123"}, { ... }],
+        //  ({"color": "blue", "shape": "round", "publisher_id", "abc123"}, { ... }],
+        //  ({"color": "blue", "shape": "square", "publisher_id", "abc123"}, { ... }]
+        val nodeCrossProduct = crossProduct(combineChildNodes)(nodeKV)
 
         // Launch recursive node actors
         val treeTraversalFutures = nodeCrossProduct.map { x =>
@@ -73,20 +80,37 @@ class TreePredictionNode extends Actor {
     logisticFunction(w.t * x)
   }
 
-  def crossProduct[T](row: Seq[Seq[T]], func: (T, T) => T) = {
+  /**
+   * Create a cross product function
+   * @param func a function to combine each pair of objects when generating the cross product
+   * @tparam T
+   * @return a new function that performs the cross product of a sequence of sequences
+   */
+  def crossProduct[T](func: (T, T) => T) = (row: Seq[Seq[T]]) => {
     row.reduce(
-      (q1, q2) => for {a <- q1; b <- q2} yield func(a, b)
+      (q1, q2) => for {
+        a <- q1
+        b <- q2
+      } yield func(a, b)
     )
   }
 
-  def combineFunc(a: Map[String, String], b: Map[String, String]): Map[String, String] = {
-    println (a ++ b)
+  def simpleCombineFunc(a: Map[String, String], b: Map[String, String]): Map[String, String] = {
     a ++ b
   }
 
-//  val futures = for (i ← 1 to 1000) yield Future(i * 2) // Create a sequence of Futures
-//  val futureSum = Future.reduce(futures)(_ + _)
-//  Await.result(futureSum, 1 second) must be(1001000)
+  /**
+   * Combine each child node into a single child node
+   * @param a
+   * @param b
+   * @return
+   */
+  def combineChildNodes(a: ChildNodeMapKV, b: ChildNodeMapKV): ChildNodeMapKV = {
+    ChildNodeMapKV(
+      a.flattenedKV ++ b.flattenedKV,
+      a.childrenKV ++ b.childrenKV
+    )
+  }
 }
 
 object TreePredictionNode {
