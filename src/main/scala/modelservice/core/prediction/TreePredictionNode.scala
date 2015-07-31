@@ -28,7 +28,7 @@ class TreePredictionNode extends Actor {
         val prediction = lrPredict(model.weights, featureVector.mapActiveValues(_.toDouble))
         sender() ! Seq(PredictionResult(leafVars, prediction))
       } else {
-        // Generate all the possible futures from this node (with cross products of any branches beginning here)
+        // Generate all the possible futures from this node with cross products of any branches beginning here
 
         // Flatten child nodes directly accessible from the current node. ie:
         // {"color": ["red", "blue"], "shape": ["round", "square"], "publisher_id": {"abc123": { ... } ... }}
