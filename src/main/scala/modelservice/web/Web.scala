@@ -10,5 +10,21 @@ import spray.can.Http
  */
 trait Web {
   this: Api with Core =>
-  IO(Http) ! Http.Bind(modelService, interface = "0.0.0.0", port = 8080)
+  {
+    val interface = System.getProperty("http.interface") match {
+      case x: String => x
+      case _ => "0.0.0.0"
+    }
+    val port = System.getProperty("http.port") match {
+      case x: String => {
+        try {
+          x.toInt
+        } catch {
+          case e: Exception => 8080
+        }
+      }
+      case _ => 8080
+    }
+    IO(Http) ! Http.Bind(modelService, interface=interface, port=port)
+  }
 }
