@@ -1,12 +1,19 @@
-name := "model-service"
-
-version := "1.0"
-
-scalaVersion := "2.11.4"
-
 resolvers += "spray repo" at "http://repo.spray.io"
 
 val sprayVersion = "1.3.1"
+
+lazy val buildSettings = Seq(
+  name := "model-service",
+  version := "1.0-SNAPSHOT",
+  organization := "com.cdgore",
+  scalaVersion := "2.11.4"
+)
+
+lazy val app = (project in file(".")).
+  settings(buildSettings: _*).
+  settings(
+    mainClass in assembly := Some("modelservice.Boot")
+  )
 
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % "2.3.6",
