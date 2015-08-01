@@ -4,6 +4,7 @@ import scala.concurrent.duration._
 
 import akka.actor._
 import modelservice.storage.ModelBroker.{BasicFeatureManager, FeatureManagerWithKey, StoreFeatureManagerWithKey}
+import modelservice.core.prediction.TreePredictionNode
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import akka.testkit.{DefaultTimeout, ImplicitSender, TestKit, TestActorRef, TestProbe}
@@ -17,6 +18,7 @@ class CoreTests extends TestKit(ActorSystem("CoreTestActorSystem")) with Default
   with WordSpecLike with Matchers with BeforeAndAfterAll {
   import modelservice.core.{FeatureParser, ModelParser}
   import CoreTests._
+  import TreePredictionNode._
 
   // Shut down the test actor system upon completion of tests
   override def afterAll {
@@ -49,9 +51,29 @@ class CoreTests extends TestKit(ActorSystem("CoreTestActorSystem")) with Default
       predictionProbe1.expectMsg(500 millis, Success)
     }
   }
+
+  "A TreePredictionNode" should {
+    "Cross product child node flattened feature sets" in {
+      crossProduct(combineChildNodes)(childNodesTestPropertiesFlattened) shouldEqual
+        childNodesTestPropertiesFlattenedCrossProductExpectedResult
+    }
+
+    "Predict a logistic function" in {
+      val logistic_1 = logisticFunction(1)
+      val logistic_neg_1 = logisticFunction(-1)
+
+      logisticFunction(0) shouldEqual 0.5
+      math.abs(0.7310585786 - logistic_1) < math.pow(10, -8) shouldBe true
+      math.abs(0.2689414214 - logistic_neg_1) < math.pow(10, -8) shouldBe true
+    }
+  }
 }
 
 object CoreTests {
+  import TreePredictionNode._
+
+  case class Success()
+
   val testFeatureSetJSON =
     """
       |{
@@ -230,7 +252,41 @@ object CoreTests {
       |}
     """.stripMargin
 
-  case class Success()
+  val childNodesTestPropertiesFlattened = Seq(
+    Seq(
+      ChildNodeMapKV(Map[String, String]("color" -> "red"), Map[String, Any]()),
+      ChildNodeMapKV(Map[String, String]("color" -> "blue"), Map[String, Any]())
+    ),
+    Seq(
+      ChildNodeMapKV(Map[String, String]("shape" -> "round"), Map[String, Any]()),
+      ChildNodeMapKV(Map[String, String]("shape" -> "square"), Map[String, Any]())
+    ),
+    Seq(
+      ChildNodeMapKV(
+        Map[String, String]("publisher_id" -> "abc123"),
+        Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c")))
+      )
+    )
+  )
+
+  val childNodesTestPropertiesFlattenedCrossProductExpectedResult = List(
+    ChildNodeMapKV(
+      Map[String, String]("color" -> "red", "shape" -> "round", "publisher_id" -> "abc123"),
+      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c")))
+    ),
+    ChildNodeMapKV(
+      Map[String, String]("color" -> "red", "shape" -> "square", "publisher_id" -> "abc123"),
+      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c")))
+    ),
+    ChildNodeMapKV(
+      Map[String, String]("color" -> "blue", "shape" -> "round", "publisher_id" -> "abc123"),
+      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c")))
+    ),
+    ChildNodeMapKV(
+      Map[String, String]("color" -> "blue", "shape" -> "square", "publisher_id" -> "abc123"),
+      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c")))
+    )
+  )
 }
 
 class DummyActor extends Actor {

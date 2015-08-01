@@ -70,6 +70,14 @@ class TreePredictionNode extends Actor {
       }
     }
   }
+}
+
+object TreePredictionNode {
+  case class NodePredict(childrenFreeVars: Map[String, Any], boundVars: Map[String, String],
+                         nodeFreeVars: Map[String, String], model: ValidModel)
+  case class ChildNodeMapKV(flattenedKV: Map[String, String], childrenKV: Map[String, Any])
+  case class PredictionResult(varMap: Map[String, String], prediction: Double)
+  case class PredictionResults(results: Seq[PredictionResult])
 
   def logisticFunction(t: Double): Double = t match {
     case x if x > 0.0 => 1.0 / (1.0 +  scala.math.exp(-t))
@@ -111,12 +119,4 @@ class TreePredictionNode extends Actor {
       a.childrenKV ++ b.childrenKV
     )
   }
-}
-
-object TreePredictionNode {
-  case class NodePredict(childrenFreeVars: Map[String, Any], boundVars: Map[String, String],
-                         nodeFreeVars: Map[String, String], model: ValidModel)
-  case class ChildNodeMapKV(flattenedKV: Map[String, String], childrenKV: Map[String, Any])
-  case class PredictionResult(varMap: Map[String, String], prediction: Double)
-  case class PredictionResults(results: Seq[PredictionResult])
 }
