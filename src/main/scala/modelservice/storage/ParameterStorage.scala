@@ -1,12 +1,12 @@
 package modelservice.storage
 
+import scala.collection.JavaConversions._
 import akka.actor.{ActorRef, Actor, ActorLogging}
 import akka.event.LoggingReceive
 import breeze.linalg.SparseVector
-import modelservice.core.HashFeatureManager
-import modelservice.storage.ModelStorage.AckParamStorage
 import org.joda.time._
 import spray.http.{HttpEntity, HttpResponse}
+import modelservice.core.HashFeatureManager
 
 /**
  * Stores and retrieves parameters
@@ -15,7 +15,7 @@ class ParameterStorage(fManager: HashFeatureManager) extends Actor with ActorLog
   import ParameterStorage._
 
   val featureManager = fManager
-  val parameters = ParameterVault
+  val parameters = new ParameterVault
 
   def receive = LoggingReceive {
     case PutParams(entry: ParameterEntry, client) => {
@@ -33,6 +33,10 @@ class ParameterStorage(fManager: HashFeatureManager) extends Actor with ActorLog
 
     case ConfirmInit() => {
       sender ! parameters.getTimes()
+    }
+
+    case GetKeySet(mKey) => {
+      sender ! parameters.getKeys(mKey)
     }
   }
 
@@ -60,12 +64,12 @@ object ParameterStorage {
   final case class GetLatestParams()
   final case class PutParams(entry: ParameterEntry, client: ActorRef)
   final case class ConfirmInit()
+  final case class GetKeySet(key: String)
 
-//  final case class Post(key: Option[String], )
   class StorageException(msg: String) extends RuntimeException(msg)
 }
 
-object ParameterVault {
+sealed class ParameterVault {
   import ModelStorage._
   import ParameterStorage._
 
@@ -97,6 +101,20 @@ object ParameterVault {
 
   def getTimes(): AckParamStorage = {
     AckParamStorage(createdAt, modifiedAt)
+  }
+
+  def getKeys(key: String): ParameterKeySet = {
+    val lastAddedStringTmp = lastAdded
+    val lastAddedString = lastAddedStringTmp match {
+      case s if s != null => s
+      case _ => ""
+    }
+    val parameterKeys = Map(
+      "created_at" -> createdAt.toString,
+      "modified_at" -> modifiedAt.toString,
+      "last_added" -> lastAddedString,
+      "parameters" -> kv.keySet.toSet)
+    ParameterKeySet(Map(key -> parameterKeys))
   }
 }
 

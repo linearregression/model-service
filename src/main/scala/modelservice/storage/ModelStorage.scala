@@ -1,5 +1,9 @@
 package modelservice.storage
 
+import org.json4s.DefaultFormats
+import org.json4s.jackson.Serialization
+
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -22,7 +26,7 @@ class ModelStorage extends Actor with ActorLogging {
   import ModelStorage._
   import ParameterStorage._
 
-  val models = ModelVault
+  val models = new ModelVault
 
   var parameterStorage: Option[Map[String, ActorRef]] = None
 
@@ -94,7 +98,7 @@ class ModelStorage extends Actor with ActorLogging {
 
   def receive = LoggingReceive {
     case Get(modelKey, paramKey) => {
-      log.info("ModelStorage received GET")
+//      log.info("ModelStorage received GET")
       val model = modelKey match {
         case Some(mK) => models.get(mK)
         case None => models.getLatest()
@@ -105,7 +109,7 @@ class ModelStorage extends Actor with ActorLogging {
             case Some(pK) => m ? GetParams(pK)
             case None => m ? GetLatestParams()
           }
-          log.info(s"MODELREF: $m")
+//          log.info(s"MODELREF: $m")
           modelFuture pipeTo sender
 //          modelFuture onComplete {
 //            case Success(mod) => {
@@ -128,7 +132,7 @@ class ModelStorage extends Actor with ActorLogging {
     }
 
     case GetLatest() => {
-      log.info("ModelStorage received GET")
+//      log.info("ModelStorage received GET")
       sender ! models.getLatest
     }
 
@@ -144,6 +148,10 @@ class ModelStorage extends Actor with ActorLogging {
         case None => client ! HttpResponse(entity=HttpEntity("Invalid model key"))
       }
     }
+
+    case GetAllKeys() => {
+      models.getAllKeys() pipeTo sender
+    }
   }
 }
 
@@ -155,10 +163,16 @@ object ModelStorage {
   final case class Post(key: String, featureManager: HashFeatureManager, client: ActorRef)
   final case class Put(modelKey: String, modelParameters: ParameterEntry, client: ActorRef)
   final case class AckParamStorage(createdAt: DateTime, modifiedAt: DateTime)
+  final case class ParameterKeySet(pKeys: Map[String, Any])
+  final case class GetAllKeys()
   class StorageException(msg: String) extends RuntimeException(msg)
 }
 
-object ModelVault {
+sealed class ModelVault {
+  import ParameterStorage._
+
+  implicit val formats = DefaultFormats
+
   private var kv = Map[String, ActorRef]()
   private var lastAdded: String = _
 
@@ -173,5 +187,22 @@ object ModelVault {
 
   def getLatest(): Option[ActorRef] = synchronized {
     kv.get(lastAdded)
+  }
+
+  def getLatestString(): String = {
+    val lastAddedStringTmp = lastAdded
+    lastAddedStringTmp match {
+      case s if s != null => s
+      case _ => ""
+    }
+  }
+
+  def getAllKeys()(implicit  ec: ExecutionContext, timeout: akka.util.Timeout) = {
+    val mKeysPKeys = kv.map {
+      case (pKey, pActor) => pActor ? GetKeySet(pKey)
+    }
+    Future.fold(mKeysPKeys)(Map[String, Any]()) {
+      case (a: Map[String, Any], b: ModelStorage.ParameterKeySet) => a ++ b.pKeys
+    }
   }
 }

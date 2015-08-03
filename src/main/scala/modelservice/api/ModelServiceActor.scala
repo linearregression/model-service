@@ -5,7 +5,7 @@ import akka.actor._
 import akka.util.Timeout
 //import modelservice.core.ModelParser.ParseParametersAndStore
 import modelservice.core.{FeatureParser, ModelParser}
-import modelservice.storage.ModelStorage
+import modelservice.storage.{ModelBroker, ModelStorage}
 import spray.can.Http
 import spray.http.HttpMethods._
 import spray.http._
@@ -17,6 +17,8 @@ import scala.concurrent.duration._
 class ModelServiceActor extends Actor with ActorLogging {
   import ModelParser._
   import FeatureParser._
+  import ModelStorage._
+  import ModelBroker._
 
   var modelStorage: Option[ActorRef] = None
 
@@ -99,5 +101,12 @@ class ModelServiceActor extends Actor with ActorLogging {
         }
       }
     }
+
+    case HttpRequest(GET, Uri.Path("/models"), _, entity, _) =>
+      val modelBroker = ModelBroker.createActor(context)
+      modelStorage match {
+        case Some(modelStorageActor) => modelBroker ! GetAllKeysInStorage(modelStorageActor, sender)
+        case None => sender ! HttpResponse(entity="Model storage not yet initialized")
+      }
   }
 }

@@ -1,9 +1,18 @@
 package modelservice.storage
 
+import spray.http.{HttpEntity, HttpResponse}
+
+import scala.concurrent.duration._
 import akka.actor._
+import akka.util.Timeout
+import akka.pattern.ask
+import akka.pattern.pipe
 import breeze.linalg.SparseVector
 import modelservice.core.HashFeatureManager
 import modelservice.storage.ParameterStorage.ParameterEntry
+import org.json4s.DefaultFormats
+import org.json4s.jackson.Serialization
+
 
 /**
  * Coordinate model storage and retrieval with client
@@ -12,12 +21,17 @@ class ModelBroker extends Actor with ActorLogging {
   import ModelBroker._
   import ModelStorage._
 
+  implicit val timeout: Timeout = 2.second
+  import context.dispatcher
+  implicit val formats = DefaultFormats
+
   def receive = {
     case StoreFeatureManager(basicModel: BasicFeatureManager, modelStorage: ActorRef, client: ActorRef) => {
       val model = ModelFactory(basicModel)
       val key = model.hashCode().toString
       modelStorage ! Post(key, model, client)
     }
+
     case StoreFeatureManagerWithKey(FeatureManagerWithKey(key: String, basicModel: BasicFeatureManager), modelStorage: ActorRef, client: ActorRef) => {
       val model = ModelFactory(basicModel)
 
@@ -26,10 +40,22 @@ class ModelBroker extends Actor with ActorLogging {
 
       modelStorage ! Post(key, model, client)
     }
+
     case StoreModelParameters(modelKey: String, paramKey: Option[String], basicModelParameters: BasicSparseVector, modelStorage: ActorRef, client: ActorRef) => {
       val modelParameters = ModelFactory(basicModelParameters)
 
       modelStorage ! Put(modelKey, ParameterEntry(paramKey, modelParameters), client)
+    }
+
+    case GetAllKeysInStorage(modelStorage, client) => {
+      val keysFuture = modelStorage ? GetAllKeys()
+      keysFuture onSuccess {
+        case results: Map[String, Set[String]] => try {
+          client ! HttpResponse(200, entity=HttpEntity(Serialization.write(results.asInstanceOf[Map[String, Set[String]]])))
+        } catch {
+          case e: Exception => client ! HttpResponse(500)
+        }
+      }
     }
 
     // TODO: serve models to HTTP client
@@ -60,6 +86,8 @@ object ModelBroker {
 
   final case class GetLatestModel(modelStorage: ActorRef)
   final case class GetModelByKey(key: String, modelStorage: ActorRef)
+
+  final case class GetAllKeysInStorage(modelStorage: ActorRef, client: ActorRef)
 
   def createActor(actorRefFactory: ActorRefFactory): ActorRef = {
     actorRefFactory actorOf Props(classOf[ModelBroker])
