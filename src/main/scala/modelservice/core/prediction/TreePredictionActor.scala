@@ -59,8 +59,8 @@ class TreePredictionActor extends Actor with ActorLogging {
   def toFreeVars(varMap: Map[String, Any]): Map[String, Any] = {
     varMap.flatMap(r =>
       r._2 match {
-        case s: Map[String, Any] => Some(r)
-        case s: List[String] => Some(r)
+        case s: Map[String, Any] if s.size > 0 => Some(r)
+        case s: List[String] if s.size > 0 => Some(r)
         case _ => None
       }
     )
