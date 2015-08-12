@@ -111,24 +111,12 @@ class ModelStorage extends Actor with ActorLogging {
           }
 //          log.info(s"MODELREF: $m")
           modelFuture pipeTo sender
-//          modelFuture onComplete {
-//            case Success(mod) => {
-//              val retrievedModel = mod.asInstanceOf[Model]
-////              log.info(s"RETRIEVED MODEL: $retrievedModel")
-//              sender ! retrievedModel
-//            }
-//            case Failure(e) => {
-//              log.info(e.getLocalizedMessage)
-//              sender ! Model(None, None)
-//            }
-//          }
         }
         case None => {
           log.info("Invalid model key")
           sender ! Model(None, None)
         }
       }
-//      sender ! models.get(key)
     }
 
     case GetLatest() => {

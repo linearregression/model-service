@@ -67,7 +67,7 @@ object ModelBroker {
   final case class BasicSparseVector(index: Array[Int], data: Array[Double], maxFeatures: Int,
                                      numFeatures: Option[Int] = None)
   final case class BasicFeatureManager(k: Int, label: String, singleFeatures: List[String],
-                                       quads: Option[Seq[Seq[Seq[String]]]] = None)
+                                       quads: Option[Seq[Seq[Seq[String]]]] = None, numericLabelKey: Option[String])
 
   final case class BasicModel(basicWeights: BasicSparseVector, basicFeatureManager: BasicFeatureManager)
   final case class ModelWithKey(key: String, basicModel: BasicModel)
@@ -100,14 +100,18 @@ object ModelFactory {
 
   def createFeatureManager(bfM: BasicFeatureManager): HashFeatureManager = {
     bfM match {
-      case BasicFeatureManager(k, label, singleFeatures, quads) => {
+      case BasicFeatureManager(k, label, singleFeatures, quads, numericLabel) => {
         val featureManager = (new HashFeatureManager)
           .withK(k)
           .withLabel(label)
           .withSingleFeatures(singleFeatures)
-        quads match {
+        val featureManagerWithQuads = quads match {
           case Some(q) => featureManager.withQuadraticFeatures(q)
           case None => featureManager
+        }
+        numericLabel match {
+          case Some(nL) => featureManagerWithQuads.withNumericValue(nL)
+          case None => featureManagerWithQuads
         }
       }
     }
