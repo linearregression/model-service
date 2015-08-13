@@ -254,17 +254,18 @@ object CoreTests {
 
   val childNodesTestPropertiesFlattened = Seq(
     Seq(
-      ChildNodeMapKV(Map[String, String]("color" -> "red"), Map[String, Any]()),
-      ChildNodeMapKV(Map[String, String]("color" -> "blue"), Map[String, Any]())
+      ChildNodeMapKV(Map[String, String]("color" -> "red"), Map[String, Any](), Map[String, Any]()),
+      ChildNodeMapKV(Map[String, String]("color" -> "blue"), Map[String, Any](), Map[String, Any]())
     ),
     Seq(
-      ChildNodeMapKV(Map[String, String]("shape" -> "round"), Map[String, Any]()),
-      ChildNodeMapKV(Map[String, String]("shape" -> "square"), Map[String, Any]())
+      ChildNodeMapKV(Map[String, String]("shape" -> "round"), Map[String, Any](), Map[String, Any]()),
+      ChildNodeMapKV(Map[String, String]("shape" -> "square"), Map[String, Any](), Map[String, Any]())
     ),
     Seq(
       ChildNodeMapKV(
         Map[String, String]("publisher_id" -> "abc123"),
-        Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c")))
+        Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c"))),
+        Map[String, Any]()
       )
     )
   )
@@ -272,19 +273,23 @@ object CoreTests {
   val childNodesTestPropertiesFlattenedCrossProductExpectedResult = List(
     ChildNodeMapKV(
       Map[String, String]("color" -> "red", "shape" -> "round", "publisher_id" -> "abc123"),
-      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c")))
+      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c"))),
+      Map[String, Any]()
     ),
     ChildNodeMapKV(
       Map[String, String]("color" -> "red", "shape" -> "square", "publisher_id" -> "abc123"),
-      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c")))
+      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c"))),
+      Map[String, Any]()
     ),
     ChildNodeMapKV(
       Map[String, String]("color" -> "blue", "shape" -> "round", "publisher_id" -> "abc123"),
-      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c")))
+      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c"))),
+      Map[String, Any]()
     ),
     ChildNodeMapKV(
       Map[String, String]("color" -> "blue", "shape" -> "square", "publisher_id" -> "abc123"),
-      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c")))
+      Map[String, Any]("property_id" -> Map[String, Any]("property_1" -> List("a", "b", "c"))),
+      Map[String, Any]()
     )
   )
 }
