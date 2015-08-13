@@ -60,7 +60,11 @@ class ModelParser(createModelActor: (ActorRefFactory) => ActorRef = ModelBroker.
       case x: Seq[Seq[Seq[String]]] if x.length > 0 => Some(x)
       case _ => None
     }
-    val basicFeatureManager = BasicFeatureManager(k, label, singleFeatures, quadFeatures)
+    val numericLabelKey = rec.get("numeric_label") match {
+      case Some(x: String) => Some(x.asInstanceOf[String])
+      case _ => None
+    }
+    val basicFeatureManager = BasicFeatureManager(k, label, singleFeatures, quadFeatures, numericLabelKey)
 
     val modelMap = simpleGetMap(rec, "model_parameters")
     val modelData = modelMap.getOrElse("data", List[Double]()).asInstanceOf[List[Double]].toArray
@@ -80,7 +84,11 @@ class ModelParser(createModelActor: (ActorRefFactory) => ActorRef = ModelBroker.
       case x: Seq[Seq[Seq[String]]] if x.length > 0 => Some(x)
       case _ => None
     }
-    BasicFeatureManager(k, label, singleFeatures, quadFeatures)
+    val numericLabelKey = rec.get("numeric_label") match {
+      case Some(x: String) => Some(x.asInstanceOf[String])
+      case _ => None
+    }
+    BasicFeatureManager(k, label, singleFeatures, quadFeatures, numericLabelKey)
   }
 
   def jsonToModelParameters(rec: Map[String, Any]): BasicSparseVector = {

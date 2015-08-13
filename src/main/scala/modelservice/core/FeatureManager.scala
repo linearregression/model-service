@@ -21,6 +21,7 @@ class HashFeatureManager extends FeatureManager[String, Int] {
       quadFeatures
   }
   var hashFunctions = Map[String, (String => Int)]()
+  var numericValue = ""
 
   def withK(k: Int): HashFeatureManager = {
     this.k = k
@@ -49,6 +50,11 @@ class HashFeatureManager extends FeatureManager[String, Int] {
     this.hashFunctions = this.allFeatures.map(
       x => (x, this.hashFactory(x))
     ).toMap
+    this
+  }
+
+  def withNumericValue(numericValue: String): HashFeatureManager = {
+    this.numericValue = numericValue
     this
   }
 
@@ -125,6 +131,14 @@ class HashFeatureManager extends FeatureManager[String, Int] {
       row => row.reduce(
         (q1, q2) => for {a <- q1; b <- q2} yield func(a, b))
     ).reduce(_ ++ _)
+  }
+
+  def getExpectedValue(probability: Double, row: Map[String, Any]): Double = {
+    try {
+      row.getOrElse(this.numericValue, 1.0).asInstanceOf[Double] * probability
+    } catch {
+      case e: Exception => probability
+    }
   }
 
   def parseRow(row: Map[String, String])(implicit num: Numeric[Int]) = {
