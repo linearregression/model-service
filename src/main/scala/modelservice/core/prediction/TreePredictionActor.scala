@@ -86,7 +86,7 @@ class TreePredictionActor extends Actor with ActorLogging {
 
               // Launch tree prediction
               val predictionFuture = (context actorOf Props(new TreePredictionNode)) ?
-                NodePredict(freeVariables, boundVariables, Map[String, String](), validModel)
+                NodePredict(freeVariables, boundVariables, Map[String, Any](), validModel, Map[String, Any]())
 
               // Collect predictions and serve to client
               predictionFuture onSuccess {

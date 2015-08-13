@@ -19,7 +19,7 @@ class TreePredictionNode extends Actor {
   import context.dispatcher
 
   def receive = {
-    case NodePredict(childrenFreeVars, boundVars, nodeFreeVars, model) => {
+    case NodePredict(childrenFreeVars, boundVars, nodeFreeVars, model, decisionVars) => {
       // Base case: childrenFreeVars is empty (ie this is a leaf), so predict
       // on nodeFreeVars + bound vars and return the result
       if (childrenFreeVars.size == 0) {
@@ -33,7 +33,7 @@ class TreePredictionNode extends Actor {
         val featureVector = model.hashFeatureManager.parseRow(leafVarsStrings)
         val prediction = lrPredict(model.weights, featureVector.mapActiveValues(_.toDouble))
         val expectedValue = model.hashFeatureManager.getExpectedValue(prediction, leafVars)
-        sender() ! Seq(PredictionResult(leafVarsStrings, expectedValue))
+        sender() ! Seq(PredictionResult(decisionVars, expectedValue))
       } else {
         // Generate all the possible futures from this node with cross products of any branches beginning here
 
@@ -45,10 +45,11 @@ class TreePredictionNode extends Actor {
         //  [({"publisher_id": "abc123"}, { ... })]]
         val nodeKV = childrenFreeVars.toSeq.flatMap(x =>
           x._2 match {
-            case s: Map[String, Map[String, Any]] => Some(s.toSeq.map(t => ChildNodeMapKV(Map(x._1 -> t._1), t._2)))
-            case s: List[String] => Some(s.map(t => ChildNodeMapKV(Map(x._1 -> t), Map[String, Any]())))
-            case s: String => Some(List(ChildNodeMapKV(Map(x._1 -> x._2), Map[String, Any]())))
-            case d: Double => Some(List(ChildNodeMapKV(Map(x._1 -> x._2), Map[String, Any]())))
+            case s: Map[String, Map[String, Any]] => Some(s.toSeq.map(t =>
+              ChildNodeMapKV(Map(x._1 -> t._1), t._2, Map[String, Any]())))
+            case s: List[String] => Some(s.map(t => ChildNodeMapKV(Map(x._1 -> t), Map[String, Any](), Map(x._1 -> t))))
+            case s: String => Some(List(ChildNodeMapKV(Map(x._1 -> x._2), Map[String, Any](), Map[String, Any]())))
+            case d: Double => Some(List(ChildNodeMapKV(Map(x._1 -> x._2), Map[String, Any](), Map[String, Any]())))
             case _ => None
           }
         )
@@ -67,7 +68,7 @@ class TreePredictionNode extends Actor {
         // Launch recursive node actors
         val treeTraversalFutures = nodeCrossProduct.map { x =>
           (context actorOf Props(new TreePredictionNode)) ?
-            NodePredict(x.childrenKV, boundVars, nodeFreeVars ++ x.flattenedKV, model)
+            NodePredict(x.childrenKV, boundVars, nodeFreeVars ++ x.flattenedKV, model, decisionVars ++ x.decisionVars)
         }
 
         // Reduce all futures by combining the results
@@ -117,15 +118,16 @@ class TreePredictionNode extends Actor {
   def combineChildNodes(a: ChildNodeMapKV, b: ChildNodeMapKV): ChildNodeMapKV = {
     ChildNodeMapKV(
       a.flattenedKV ++ b.flattenedKV,
-      a.childrenKV ++ b.childrenKV
+      a.childrenKV ++ b.childrenKV,
+      a.decisionVars ++ b.decisionVars
     )
   }
 }
 
 object TreePredictionNode {
   case class NodePredict(childrenFreeVars: Map[String, Any], boundVars: Map[String, Any],
-                         nodeFreeVars: Map[String, Any], model: ValidModel)
-  case class ChildNodeMapKV(flattenedKV: Map[String, Any], childrenKV: Map[String, Any])
-  case class PredictionResult(varMap: Map[String, String], prediction: Double)
+                         nodeFreeVars: Map[String, Any], model: ValidModel, decisionVars: Map[String, Any])
+  case class ChildNodeMapKV(flattenedKV: Map[String, Any], childrenKV: Map[String, Any], decisionVars: Map[String, Any])
+  case class PredictionResult(varMap: Map[String, Any], prediction: Double)
   case class PredictionResults(results: Seq[PredictionResult])
 }
