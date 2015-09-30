@@ -98,6 +98,13 @@ class TreePredictionActor extends Actor with ActorLogging {
                   client ! HttpResponse(200, entity=HttpEntity(Serialization.write(resultList)))
                 }
               }
+
+              predictionFuture onFailure {
+                case e: Exception => {
+                  log.info(e.getLocalizedMessage)
+                  client ! HttpResponse(500, entity=HttpEntity(e.getLocalizedMessage))
+                }
+              }
             }
             case _ => client ! HttpResponse(404, entity=HttpEntity("Invalid model and / or parameter set key"))
           }

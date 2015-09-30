@@ -54,26 +54,26 @@ class ModelStorage extends Actor with ActorLogging {
         Props(classOf[ParameterStorage], featureManager), name=s"ParameterStorage_$key"))
   }
 
-  def getParams(paramStorageActor: Option[ActorRef], paramVersion: Option[String],
-                sender: ActorRef) = {
-    paramStorageActor match {
-      case Some(pActor) => {
-        paramVersion match {
-          case Some(pVersion) => {
-            pActor ? GetParams(pVersion) onComplete {// TODO: add onFailure
-              case Success(p) => sender ! p.asInstanceOf[ParameterStorage.Model]
-            }
-          }
-          case None => {
-            pActor ? GetLatestParams() onComplete {// TODO: add onFailure
-              case Success(p) => sender ! p.asInstanceOf[ParameterStorage.Model]
-            }
-          }
-        }
-      }
-      case None => ParameterStorage.Model(None, None)
-    }
-  }
+//  def getParams(paramStorageActor: Option[ActorRef], paramVersion: Option[String],
+//                sender: ActorRef) = {
+//    paramStorageActor match {
+//      case Some(pActor) => {
+//        paramVersion match {
+//          case Some(pVersion) => {
+//            pActor ? GetParams(pVersion) onComplete {// TODO: add onFailure
+//              case Success(p) => sender ! p.asInstanceOf[ParameterStorage.Model]
+//            }
+//          }
+//          case None => {
+//            pActor ? GetLatestParams() onComplete {// TODO: add onFailure
+//              case Success(p) => sender ! p.asInstanceOf[ParameterStorage.Model]
+//            }
+//          }
+//        }
+//      }
+//      case None => ParameterStorage.Model(None, None)
+//    }
+//  }
 
   def postFM(key: String, featureManager: HashFeatureManager, client: ActorRef): Unit = {
     this.models.get(key) match {
