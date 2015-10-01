@@ -1,6 +1,8 @@
 package modelservice.storage
 
 import spray.http.{HttpEntity, HttpResponse}
+import spray.http.HttpHeaders._
+import spray.http.ContentTypes._
 
 import scala.concurrent.duration._
 import akka.actor._
@@ -51,9 +53,19 @@ class ModelBroker extends Actor with ActorLogging {
       val keysFuture = modelStorage ? GetAllKeys()
       keysFuture onSuccess {
         case results: Map[String, Set[String]] => try {
-          client ! HttpResponse(200, entity=HttpEntity(Serialization.write(results.asInstanceOf[Map[String, Set[String]]])))
+          client ! HttpResponse(
+            200,
+            entity = HttpEntity(
+              `application/json`,
+              Serialization.write(results.asInstanceOf[Map[String, Set[String]]])
+            ),
+            headers = List(Connection("close"))
+          )
         } catch {
-          case e: Exception => client ! HttpResponse(500)
+          case e: Exception => client ! HttpResponse(
+            500,
+            headers = List(Connection("close"))
+          )
         }
       }
     }

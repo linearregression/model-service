@@ -1,5 +1,7 @@
 package modelservice.core.prediction
 
+import spray.http.ContentTypes._
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -7,6 +9,7 @@ import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
 import spray.http.{HttpEntity, HttpResponse}
+import spray.http.HttpHeaders._
 import org.json4s._
 import org.json4s.jackson.Serialization
 import breeze.linalg.SparseVector
@@ -95,23 +98,42 @@ class TreePredictionActor extends Actor with ActorLogging {
                     x.varMap ++ Map[String, Double]("prediction" -> x.prediction)
                   )
 
-                  client ! HttpResponse(200, entity=HttpEntity(Serialization.write(resultList)))
+                  client ! HttpResponse(
+                    200,
+                    entity = HttpEntity(
+                      `application/json`,
+                      Serialization.write(resultList)
+                    ),
+                    headers = List(Connection("close"))
+                  )
                 }
               }
 
               predictionFuture onFailure {
                 case e: Exception => {
                   log.info(e.getLocalizedMessage)
-                  client ! HttpResponse(500, entity=HttpEntity(e.getLocalizedMessage))
+                  client ! HttpResponse(
+                    500,
+                    entity = HttpEntity(e.getLocalizedMessage),
+                    headers = List(Connection("close"))
+                  )
                 }
               }
             }
-            case _ => client ! HttpResponse(404, entity=HttpEntity("Invalid model and / or parameter set key"))
+            case _ => client ! HttpResponse(
+              404,
+              entity = HttpEntity("Invalid model and / or parameter set key"),
+              headers = List(Connection("close"))
+            )
           }
         }
         case Failure(e) => {
           log.info(e.getLocalizedMessage)
-          client ! HttpResponse(500, entity=HttpEntity(e.getLocalizedMessage))
+          client ! HttpResponse(
+            500,
+            entity = HttpEntity(e.getLocalizedMessage),
+            headers = List(Connection("close"))
+          )
         }
       }
     }

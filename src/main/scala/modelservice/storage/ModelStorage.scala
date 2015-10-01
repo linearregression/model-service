@@ -1,23 +1,23 @@
 package modelservice.storage
 
-import org.json4s.DefaultFormats
-import org.json4s.jackson.Serialization
-
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
+import org.joda.time.DateTime
+import org.json4s.DefaultFormats
+import org.json4s.jackson.Serialization
 import akka.actor.SupervisorStrategy.Restart
 import akka.util.Timeout
 import akka.pattern.ask
 import akka.pattern.pipe
-import org.joda.time.DateTime
 import akka.actor._
 import akka.event.LoggingReceive
-import modelservice.core.HashFeatureManager
 import spray.http.{HttpEntity, HttpResponse}
 import spray.http.HttpHeaders._
 import spray.http.ContentTypes._
+
+import modelservice.core.HashFeatureManager
 
 /**
  * Stores and retrieves models
@@ -87,8 +87,14 @@ class ModelStorage extends Actor with ActorLogging {
           case Success(p) => {
             val paramTimes = p.asInstanceOf[AckParamStorage]
             val createdAt = paramTimes.createdAt.toString
-            client ! HttpResponse(200, entity=HttpEntity(s"""{"model_namespace": "$key", "created_at": "$createdAt"}"""),
-              headers = List(`Content-Type`(`application/json`)))
+            client ! HttpResponse(
+              200,
+              entity=HttpEntity(
+                `application/json`,
+                s"""{"model_namespace": "$key", "created_at": "$createdAt"}"""
+              ),
+              headers = List(Connection("close"))
+            )
           }
           case Failure(e) => log.info(e.getLocalizedMessage)
         }
@@ -133,7 +139,12 @@ class ModelStorage extends Actor with ActorLogging {
         case Some(paramActor) => {
           paramActor ! PutParams(modelParameters, client)
         }
-        case None => client ! HttpResponse(entity=HttpEntity("Invalid model key"))
+        case None => client ! HttpResponse(
+          entity = HttpEntity("Invalid model key"),
+          headers = List(
+            Connection("close")
+          )
+        )
       }
     }
 

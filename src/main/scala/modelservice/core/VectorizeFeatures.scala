@@ -1,15 +1,17 @@
 package modelservice.core
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.pattern.ask
-import akka.util.Timeout
-import modelservice.core.prediction.PredictActor
-import modelservice.storage.{ParameterStorage, ModelStorage}
-import spray.http.{HttpEntity, HttpResponse}
-
 //import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.ask
+import akka.util.Timeout
+import spray.http.HttpHeaders._
+import spray.http.{HttpEntity, HttpResponse}
+
+import modelservice.core.prediction.PredictActor
+import modelservice.storage.{ParameterStorage, ModelStorage}
 
 /**
  * Turn parsed features into sparse vectors
@@ -35,12 +37,24 @@ class VectorizeFeatures extends Actor with ActorLogging {
               val predictActor = context actorOf Props(new PredictActor)
               predictActor ! Predict(weights, featureVector, client)
             }
-            case _ => client ! HttpResponse(404, entity=HttpEntity("Invalid model and / or parameter set key"))
+            case _ => client ! HttpResponse(
+              404,
+              entity = HttpEntity("Invalid model and / or parameter set key"),
+              headers = List(
+                Connection("close")
+              )
+            )
           }
         }
         case Failure(e) => {
           log.info(e.getLocalizedMessage)
-          client ! HttpResponse(500, entity=HttpEntity(e.getLocalizedMessage))
+          client ! HttpResponse(
+            500,
+            entity = HttpEntity(e.getLocalizedMessage),
+            headers = List(
+              Connection("close")
+            )
+          )
         }
       }
     }

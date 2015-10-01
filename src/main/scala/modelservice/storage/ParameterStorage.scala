@@ -1,11 +1,14 @@
 package modelservice.storage
 
 import scala.collection.JavaConversions._
+
+import org.joda.time._
 import akka.actor.{ActorRef, Actor, ActorLogging}
 import akka.event.LoggingReceive
 import breeze.linalg.SparseVector
-import org.joda.time._
 import spray.http.{HttpEntity, HttpResponse}
+import spray.http.HttpHeaders._
+
 import modelservice.core.HashFeatureManager
 
 /**
@@ -20,7 +23,12 @@ class ParameterStorage(fManager: HashFeatureManager) extends Actor with ActorLog
   def receive = LoggingReceive {
     case PutParams(entry: ParameterEntry, client) => {
       val paramKey = updateParameters(entry)
-      client ! HttpResponse(entity=HttpEntity(s"Parameters stored with key: $paramKey"))
+      client ! HttpResponse(
+        entity = HttpEntity(s"Parameters stored with key: $paramKey"),
+        headers = List(
+          Connection("close")
+        )
+      )
     }
 
     case GetParams(key) => {

@@ -4,7 +4,9 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 import breeze.linalg.SparseVector
 import org.json4s._
 import org.json4s.jackson.Serialization
+import spray.http.ContentTypes._
 import spray.http.{HttpEntity, HttpResponse}
+import spray.http.HttpHeaders._
 
 /**
  * Make the predictions and return to client
@@ -17,7 +19,13 @@ class PredictActor extends Actor with ActorLogging {
   def receive = {
     case Predict(weights, featureVector, client) => {
       val prediction = lrPredict(weights, featureVector.mapActiveValues(_.toDouble))
-      client ! HttpResponse(entity=HttpEntity(Serialization.write(Map("prediction" -> prediction))))
+      client ! HttpResponse(
+        entity = HttpEntity(
+          `application/json`,
+          Serialization.write(Map("prediction" -> prediction))
+        ),
+        headers = List(Connection("close"))
+      )
     }
   }
 
