@@ -1,12 +1,12 @@
 resolvers += "spray repo" at "http://repo.spray.io"
 
-val sprayVersion = "1.3.1"
+val sprayVersion = "1.3.3"
 
 lazy val buildSettings = Seq(
   name := "model-service",
   version := "1.0-SNAPSHOT",
   organization := "com.cdgore",
-  scalaVersion := "2.11.4"
+  scalaVersion := "2.11.6"
 )
 
 lazy val app = (project in file(".")).
@@ -16,10 +16,9 @@ lazy val app = (project in file(".")).
   )
 
 libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-actor" % "2.3.6",
-  "com.typesafe.akka" %% "akka-http-experimental" % "0.7",
-  "io.spray" %% "spray-routing" % sprayVersion,
-  "io.spray" %% "spray-client" % sprayVersion,
+  "com.typesafe.akka" %% "akka-actor" % "2.3.14",
+//  "com.typesafe.akka" %% "akka-http-experimental" % "1.0",
+  "io.spray" %% "spray-can" % sprayVersion,
   "io.spray" %% "spray-testkit" % sprayVersion % "test",
   "org.json4s" %% "json4s-native" % "3.2.10",
   "org.json4s" %% "json4s-jackson" % "3.2.10",
