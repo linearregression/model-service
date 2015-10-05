@@ -2,7 +2,7 @@ package modelservice.api
 
 import org.json4s._
 import org.json4s.jackson.Serialization
-import akka.actor.SupervisorStrategy.Restart
+import akka.actor.SupervisorStrategy.{Restart, Stop}
 import akka.actor._
 import akka.util.Timeout
 import akka.pattern.ask
@@ -29,7 +29,14 @@ class ModelServiceActor extends Actor with ActorLogging {
 
   override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 3,
     withinTimeRange = 5 seconds) {
-    case _: ModelStorage.StorageException => Restart
+    case e: ModelStorage.StorageException => {
+      log.info("Restarting storage actor: " + e.getMessage)
+      Restart
+    }
+    case e: Exception => {
+      log.info("Actor failed, stopping it: " + e.getMessage)
+      Stop
+    }
   }
 
   implicit val timeout: Timeout = 5.second

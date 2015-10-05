@@ -1,15 +1,15 @@
 package modelservice.core.prediction
 
-import spray.http.ContentTypes._
-
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
+import akka.actor.SupervisorStrategy.Stop
 import spray.http.{HttpEntity, HttpResponse}
 import spray.http.HttpHeaders._
+import spray.http.ContentTypes._
 import org.json4s._
 import org.json4s.jackson.Serialization
 import breeze.linalg.SparseVector
@@ -32,6 +32,11 @@ class TreePredictionActor extends Actor with ActorLogging {
   import context.dispatcher
 
   implicit val formats = DefaultFormats
+
+  override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 0,
+    withinTimeRange = 1.second) {
+    case _: Exception => Stop
+  }
 
   def freeVarList(freeVars: Any): List[Map[String, Any]] = {
     freeVars match {

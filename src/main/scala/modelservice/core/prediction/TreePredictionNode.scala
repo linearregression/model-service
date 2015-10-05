@@ -1,13 +1,14 @@
 package modelservice.core.prediction
 
-import akka.actor.{Actor, Props}
+import scala.concurrent.Future
+import scala.concurrent.duration._
+
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{OneForOneStrategy, Actor, Props}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import breeze.linalg.SparseVector
 import modelservice.core.prediction.TreePredictionActor.ValidModel
-
-import scala.concurrent.Future
-import scala.concurrent.duration._
 
 /**
  * Node actor in prediction tree
@@ -15,8 +16,13 @@ import scala.concurrent.duration._
 class TreePredictionNode extends Actor {
   import TreePredictionNode._
 
-  implicit val timeout: Timeout = 5.second
+  implicit val timeout: Timeout = 1.second
   import context.dispatcher
+
+  override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 0,
+    withinTimeRange = 1.second) {
+    case _: Exception => Stop
+  }
 
   def receive = {
     case NodePredict(childrenFreeVars, boundVars, nodeFreeVars, model, decisionVars) => {

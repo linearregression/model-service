@@ -1,5 +1,7 @@
 package modelservice.storage
 
+import modelservice.storage.ModelStorage
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -175,17 +177,32 @@ sealed class ModelVault {
   private var kv = Map[String, ActorRef]()
   private var lastAdded: String = _
 
+  @throws(classOf[ModelStorage.StorageException])
   def post(key: String, paramStorageActor: ActorRef) = synchronized {
-    kv = kv + (key -> paramStorageActor)
-    lastAdded = key
+    try {
+      kv = kv + (key -> paramStorageActor)
+      lastAdded = key
+    } catch {
+      case e: Exception => throw new ModelStorage.StorageException("ModelStorage post failed: " + e.getMessage)
+    }
   }
 
+  @throws(classOf[ModelStorage.StorageException])
   def get(key: String): Option[ActorRef] = synchronized {
-    kv.get(key)
+    try {
+      kv.get(key)
+    } catch {
+      case e: Exception => throw new ModelStorage.StorageException("ModelStorage get failed: " + e.getMessage)
+    }
   }
 
+  @throws(classOf[ModelStorage.StorageException])
   def getLatest(): Option[ActorRef] = synchronized {
-    kv.get(lastAdded)
+    try {
+      kv.get(lastAdded)
+    } catch {
+      case e: Exception => throw new ModelStorage.StorageException("ModelStorage getLatest failed: " + e.getMessage)
+    }
   }
 
   def getLatestString(): String = {
