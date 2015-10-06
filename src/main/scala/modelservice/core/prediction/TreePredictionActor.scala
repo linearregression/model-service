@@ -1,5 +1,7 @@
 package modelservice.core.prediction
 
+import modelservice.Boot
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -7,6 +9,8 @@ import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
 import akka.actor.SupervisorStrategy.Stop
+import akka.routing.RoundRobinRouter
+import akka.dispatch.{BoundedMessageQueueSemantics, RequiresMessageQueue}
 import spray.http.{HttpEntity, HttpResponse}
 import spray.http.HttpHeaders._
 import spray.http.ContentTypes._
@@ -22,7 +26,7 @@ import modelservice.storage.{ModelStorage, ParameterStorage}
  *
  * Retrieves the appropriate model from storage and kicks off tree prediction
  */
-class TreePredictionActor extends Actor with ActorLogging {
+class TreePredictionActor extends Actor with ActorLogging with RequiresMessageQueue[BoundedMessageQueueSemantics] {
   import ModelStorage._
   import ParameterStorage._
   import TreePredictionActor._
@@ -93,7 +97,7 @@ class TreePredictionActor extends Actor with ActorLogging {
               val validModel = ValidModel(weights, featureManager)
 
               // Launch tree prediction
-              val predictionFuture = (context actorOf Props(new TreePredictionNode)) ?
+              val predictionFuture = Boot.treePredictionNodes ?
                 NodePredict(freeVariables, boundVariables, Map[String, Any](), validModel, Map[String, Any]())
 
               // Collect predictions and serve to client
@@ -151,6 +155,6 @@ object TreePredictionActor {
   case class ValidModel(weights: SparseVector[Double], hashFeatureManager: HashFeatureManager)
 
   def createActor(actorRefFactory: ActorRefFactory): ActorRef = {
-    actorRefFactory actorOf Props(classOf[TreePredictionActor])
+    actorRefFactory actorOf Props(classOf[TreePredictionActor]).withRouter(RoundRobinRouter(nrOfInstances = 8))
   }
 }

@@ -28,8 +28,10 @@ class CoreTests extends TestKit(ActorSystem("CoreTestActorSystem")) with Default
   val modelBrokerProbe1 = TestProbe()
   val predictionProbe1 = TestProbe()
 
+  val dummyPredictionActor = DummyPredictionActor.createActor(predictionProbe1.ref)(system)
+
   val modelParser = system actorOf Props(classOf[ModelParser], DummyModelBrokerActor.createActor(modelBrokerProbe1.ref))
-  val featureParser = system actorOf Props(classOf[FeatureParser], DummyPredictionActor.createActor(predictionProbe1.ref))
+  val featureParser = system actorOf Props(classOf[FeatureParser], dummyPredictionActor)
 
 
   "A ModelParser" should {

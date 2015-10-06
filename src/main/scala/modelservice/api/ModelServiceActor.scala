@@ -1,5 +1,7 @@
 package modelservice.api
 
+import akka.routing.RoundRobinRouter
+import modelservice.Boot
 import org.json4s._
 import org.json4s.jackson.Serialization
 import akka.actor.SupervisorStrategy.{Restart, Stop}
@@ -77,8 +79,8 @@ class ModelServiceActor extends Actor with ActorLogging {
 
       modelStorage match {
         case Some(modelStorageActor) => {
-          val parseActor = context actorOf Props(new FeatureParser())
-          parseActor ! ParseFeatures(entity, modelKey, paramKey, modelStorageActor, sender)
+//          val parseActor = context actorOf Props(new FeatureParser(Boot.treePredictionActors)).withRouter(RoundRobinRouter(nrOfInstances = 8))
+          Boot.parseActor ! ParseFeatures(entity, modelKey, paramKey, modelStorageActor, sender)
         }
         case None => sender ! HttpResponse(
           entity = "Model storage not yet initialized",

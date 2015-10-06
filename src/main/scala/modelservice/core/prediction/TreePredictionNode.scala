@@ -1,19 +1,23 @@
 package modelservice.core.prediction
 
+import modelservice.Boot
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{OneForOneStrategy, Actor, Props}
+import akka.dispatch.RequiresMessageQueue
+import akka.dispatch.BoundedMessageQueueSemantics
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
+import akka.routing.RoundRobinRouter
 import breeze.linalg.SparseVector
 import modelservice.core.prediction.TreePredictionActor.ValidModel
 
 /**
  * Node actor in prediction tree
  */
-class TreePredictionNode extends Actor {
+class TreePredictionNode extends Actor with RequiresMessageQueue[BoundedMessageQueueSemantics] {
   import TreePredictionNode._
 
   implicit val timeout: Timeout = 1.second
@@ -73,7 +77,7 @@ class TreePredictionNode extends Actor {
 
         // Launch recursive node actors
         val treeTraversalFutures = nodeCrossProduct.map { x =>
-          (context actorOf Props(new TreePredictionNode)) ?
+          Boot.treePredictionNodes ?
             NodePredict(x.childrenKV, boundVars, nodeFreeVars ++ x.flattenedKV, model, decisionVars ++ x.decisionVars)
         }
 
