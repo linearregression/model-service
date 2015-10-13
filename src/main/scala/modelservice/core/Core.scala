@@ -1,7 +1,9 @@
 package modelservice.core
 
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.routing.RoundRobinRouter
+import modelservice.core.prediction.PredictionActors
+import modelservice.storage.StorageActors
 
 /**
  * Core
@@ -18,11 +20,14 @@ trait InitCore extends Core {
   sys.addShutdownHook(system.shutdown())
 }
 
-trait ModelServiceActors {
-  this: Core =>
-  import modelservice.core.prediction.{TreePredictionActor, TreePredictionNode}
+trait CoreActors {
+  val parseActor: ActorRef
+  val modelParser: ActorRef
+}
 
-  val treePredictionActors = TreePredictionActor.createActor(system)
-  val treePredictionNodes = system actorOf Props[TreePredictionNode].withRouter(RoundRobinRouter(nrOfInstances = 32))
-  val parseActor = system actorOf Props(new FeatureParser(treePredictionActors)).withRouter(RoundRobinRouter(nrOfInstances = 8))
+trait CoreActorSet extends CoreActors {
+  this: Core with PredictionActors with StorageActors =>
+
+  val parseActor = system actorOf Props(new FeatureParser(this)).withRouter(RoundRobinRouter(nrOfInstances = 8))
+  val modelParser = system actorOf Props(new ModelParser(this)).withRouter(RoundRobinRouter(nrOfInstances = 4))
 }

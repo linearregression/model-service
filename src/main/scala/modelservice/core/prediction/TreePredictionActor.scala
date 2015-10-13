@@ -1,6 +1,6 @@
 package modelservice.core.prediction
 
-import modelservice.Boot
+//import modelservice.Boot
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -26,7 +26,7 @@ import modelservice.storage.{ModelStorage, ParameterStorage}
  *
  * Retrieves the appropriate model from storage and kicks off tree prediction
  */
-class TreePredictionActor extends Actor with ActorLogging with RequiresMessageQueue[BoundedMessageQueueSemantics] {
+class TreePredictionActor(predictionActors: PredictionActors) extends Actor with ActorLogging with RequiresMessageQueue[BoundedMessageQueueSemantics] {
   import ModelStorage._
   import ParameterStorage._
   import TreePredictionActor._
@@ -97,7 +97,7 @@ class TreePredictionActor extends Actor with ActorLogging with RequiresMessageQu
               val validModel = ValidModel(weights, featureManager)
 
               // Launch tree prediction
-              val predictionFuture = Boot.treePredictionNodes ?
+              val predictionFuture = predictionActors.treePredictionNodes ?
                 NodePredict(freeVariables, boundVariables, Map[String, Any](), validModel, Map[String, Any]())
 
               // Collect predictions and serve to client
