@@ -28,7 +28,7 @@ class FeatureParser(predictionActors: PredictionActors)
       } catch {
         case e: Exception => log.info(e.getLocalizedMessage)
       }
-    case _ => log.info("Cannot parse request")
+    case _ => log.info("Cannot parse feature request")
   }
 }
 

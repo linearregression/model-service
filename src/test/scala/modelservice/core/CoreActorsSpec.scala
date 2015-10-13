@@ -1,10 +1,11 @@
 package modelservice.core
 
+import modelservice.storage.MockStorageActors
+
 import scala.concurrent.duration._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
 import akka.actor.{Props, ActorSystem}
-import akka.testkit.{TestProbe, ImplicitSender, DefaultTimeout, TestKit}
+import akka.testkit.{ImplicitSender, DefaultTimeout, TestKit}
 import spray.http.HttpEntity
 import modelservice.core.prediction.TreePredictionNode
 import modelservice.prediction.MockPredictionActors
@@ -12,9 +13,9 @@ import modelservice.prediction.MockPredictionActors
 /**
  * Test the core actors
  */
-class CoreActorsSpec extends TestKit(ActorSystem("CoreTestActorSystem")) with Core with MockPredictionActors with CoreActorSet with DefaultTimeout with ImplicitSender
-with WordSpecLike with Matchers with BeforeAndAfterAll {
-  import modelservice.core.{FeatureParser, ModelParser}
+class CoreActorsSpec extends TestKit(ActorSystem("CoreTestActorSystem")) with DefaultTimeout with ImplicitSender
+with WordSpecLike with Matchers with BeforeAndAfterAll
+with Core with MockPredictionActors with MockStorageActors with CoreActorSet {
   import CoreTests._
   import TreePredictionNode._
 
@@ -23,21 +24,13 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     TestKit.shutdownActorSystem(system)
   }
 
-  val modelBrokerProbe1 = TestProbe()
-  //  val predictionProbe1 = TestProbe()
-
-  //  val dummyPredictionActor = DummyPredictionActor.createActor(predictionProbe1.ref)(system)
-
-  val modelParser = system actorOf Props(classOf[ModelParser], DummyModelBrokerActor.createActor(modelBrokerProbe1.ref))
-  //  val featureParser = system actorOf Props(new FeatureParser(this))
-
   "A ModelParser" should {
     "Parse a model" in {
       val dummyActor1 = system actorOf Props[DummyActor]
       val dummyActor2 = system actorOf Props[DummyActor]
       val mReq = ModelParser.ParseModelAndStore(HttpEntity(testModelJSON), Some("m_key"), dummyActor1, dummyActor2)
       modelParser ! mReq
-      modelBrokerProbe1.expectMsg(500 millis, Success)
+      storageTestProbe.expectMsg(500 millis, Success)
     }
   }
 

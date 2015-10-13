@@ -5,14 +5,14 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import spray.http.HttpEntity
 
-import modelservice.storage.ModelBroker
+import modelservice.storage.{StorageActors, ModelBroker}
 
 /**
  * Parse Models
- * @param createModelActor Create actor using current the context.  This should be the model broker in production or a
+ * @param storageActors Create actor using current the context.  This should be the model broker in production or a
  *                         probe actor for tests
  */
-class ModelParser(createModelActor: (ActorRefFactory) => ActorRef = ModelBroker.createActor)
+class ModelParser(storageActors: StorageActors)
   extends Actor with ActorLogging {
   import ModelBroker._
   import ModelParser._
@@ -29,20 +29,20 @@ class ModelParser(createModelActor: (ActorRefFactory) => ActorRef = ModelBroker.
         log.info("Parsed feature manager!")
         log.info(basicFeatureManager.toString)
 
-        val modelBroker = createModelActor(context)
+//        val modelBroker = createModelActor(context)
         modelKey match {
-          case Some(k) => modelBroker ! StoreFeatureManagerWithKey(FeatureManagerWithKey(k, basicFeatureManager), modelStorage, client)
-          case None => modelBroker ! StoreFeatureManager(basicFeatureManager, modelStorage, client)
+          case Some(k) => storageActors.modelBroker ! StoreFeatureManagerWithKey(FeatureManagerWithKey(k, basicFeatureManager), modelStorage, client)
+          case None => storageActors.modelBroker ! StoreFeatureManager(basicFeatureManager, modelStorage, client)
         }
       } catch {
         case e: Exception => log.info(e.getLocalizedMessage)
       }
     case ParseParametersAndStore(rec: HttpEntity, modelKey: String, paramKey: Option[String], modelStorage: ActorRef, client: ActorRef) => {
       val basicModelParameters = jsonToModelParameters(parse(rec.asString).values.asInstanceOf[Map[String, Any]])
-      val modelBroker = createModelActor(context)
-      modelBroker ! StoreModelParameters(modelKey, paramKey, basicModelParameters, modelStorage, client)
+//      val modelBroker = createModelActor(context)
+      storageActors.modelBroker ! StoreModelParameters(modelKey, paramKey, basicModelParameters, modelStorage, client)
     }
-    case _ => log.info("Cannot parse request")
+    case _ => log.info("Cannot parse model request")
   }
 
   // 2^k feature space

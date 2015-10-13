@@ -6,8 +6,10 @@ import modelservice.core.Core
 import modelservice.core.CoreTests.{DummyActor, Success}
 import modelservice.core.prediction.PredictionActors
 import modelservice.core.prediction.TreePredictionActor.PredictTree
-import modelservice.storage.ModelBroker.{BasicFeatureManager, FeatureManagerWithKey, StoreFeatureManagerWithKey}
 
+/**
+ * Mocked prediction layer actors
+ */
 trait MockPredictionActors extends PredictionActors {
   this: Core =>
 

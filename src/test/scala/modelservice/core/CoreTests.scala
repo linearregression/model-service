@@ -238,21 +238,3 @@ object CoreTests {
     )
   )
 }
-
-class DummyModelBrokerActor(nextActor: ActorRef) extends Actor with ActorLogging {
-  def receive = {
-    case StoreFeatureManagerWithKey(FeatureManagerWithKey(key: String, basicModel: BasicFeatureManager),
-    modelStorage: ActorRef, client: ActorRef) => {
-      log.info("DummyModelBrokerActor received StoreFeatureManagerWithKey")
-      if (key == "m_key" & basicModel.label == "target" & basicModel.quads.nonEmpty) {
-        nextActor ! CoreTests.Success
-      }
-    }
-  }
-}
-
-object DummyModelBrokerActor {
-  def createActor(nextActor: ActorRef) = (actorRefFactory: ActorRefFactory) => {
-    actorRefFactory actorOf Props(classOf[DummyModelBrokerActor], nextActor)
-  }
-}

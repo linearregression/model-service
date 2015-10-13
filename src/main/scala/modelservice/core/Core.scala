@@ -3,6 +3,7 @@ package modelservice.core
 import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.routing.RoundRobinRouter
 import modelservice.core.prediction.PredictionActors
+import modelservice.storage.StorageActors
 
 /**
  * Core
@@ -21,10 +22,12 @@ trait InitCore extends Core {
 
 trait CoreActors {
   val parseActor: ActorRef
+  val modelParser: ActorRef
 }
 
 trait CoreActorSet extends CoreActors {
-  this: Core with PredictionActors =>
+  this: Core with PredictionActors with StorageActors =>
 
   val parseActor = system actorOf Props(new FeatureParser(this)).withRouter(RoundRobinRouter(nrOfInstances = 8))
+  val modelParser = system actorOf Props(new ModelParser(this)).withRouter(RoundRobinRouter(nrOfInstances = 4))
 }

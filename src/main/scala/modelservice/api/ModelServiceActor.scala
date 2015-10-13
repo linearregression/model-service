@@ -1,6 +1,5 @@
 package modelservice.api
 
-import modelservice.Boot
 import org.json4s._
 import org.json4s.jackson.Serialization
 import akka.actor.SupervisorStrategy.{Restart, Stop}
@@ -13,14 +12,13 @@ import spray.http.HttpMethods._
 import spray.http.HttpHeaders._
 import spray.http._
 import scala.concurrent.duration._
-//import modelservice.core.ModelParser.ParseParametersAndStore
 import modelservice.core.{CoreActors, FeatureParser, ModelParser}
-import modelservice.storage.{ModelBroker, ModelStorage}
+import modelservice.storage.{StorageActors, ModelBroker, ModelStorage}
 
 /**
  * REST actor to pass requests, initialize and maintain storage
  */
-class ModelServiceActor(coreActors: CoreActors) extends Actor with ActorLogging {
+class ModelServiceActor(coreActors: CoreActors, storageActors: StorageActors) extends Actor with ActorLogging {
   import ModelParser._
   import FeatureParser._
   import ModelStorage._
@@ -46,6 +44,7 @@ class ModelServiceActor(coreActors: CoreActors) extends Actor with ActorLogging 
 
   def initModelStorage(): Unit = {
     modelStorage = Some(context watch(context actorOf(Props[ModelStorage], name="ModelStorage")))
+//    modelStorage = Some(context watch(storageActors.modelStorageFactory(context)))
   }
 
   override def preStart(): Unit = {
@@ -94,9 +93,9 @@ class ModelServiceActor(coreActors: CoreActors) extends Actor with ActorLogging 
      * Returns a key for the given model
      */
     case HttpRequest(POST, Uri.Path("/models"), _, entity, _) =>
-      val parseActor = context actorOf Props(new ModelParser())
+//      val parseActor = context actorOf Props(new ModelParser())
       modelStorage match {
-        case Some(modelStorageActor) => parseActor ! ParseModelAndStore(entity, None, modelStorageActor, sender)
+        case Some(modelStorageActor) => coreActors.modelParser ! ParseModelAndStore(entity, None, modelStorageActor, sender)
         case None => sender ! HttpResponse(
           entity = "Model storage not yet initialized",
           headers = List(Connection("close"))
@@ -116,7 +115,7 @@ class ModelServiceActor(coreActors: CoreActors) extends Actor with ActorLogging 
       }
       modelKey match {
         case Some(key) => {
-          val parseActor = context actorOf Props(new ModelParser())
+//          val parseActor = context actorOf Props(new ModelParser())
           modelStorage match {
             case Some(modelStorageActor) => {
               val paramKey = try {
@@ -125,8 +124,8 @@ class ModelServiceActor(coreActors: CoreActors) extends Actor with ActorLogging 
                 case e: Exception => None
               }
               paramKey match {
-                case Some(pKey) => parseActor ! ParseParametersAndStore(entity, key, Some(pKey), modelStorageActor, sender)
-                case None => parseActor ! ParseModelAndStore(entity, Some(key), modelStorageActor, sender)
+                case Some(pKey) => coreActors.modelParser ! ParseParametersAndStore(entity, key, Some(pKey), modelStorageActor, sender)
+                case None => coreActors.modelParser ! ParseModelAndStore(entity, Some(key), modelStorageActor, sender)
               }
             }
             case None => sender ! HttpResponse(
@@ -149,9 +148,9 @@ class ModelServiceActor(coreActors: CoreActors) extends Actor with ActorLogging 
      * Returns a list of currently stored models
      */
     case HttpRequest(GET, Uri.Path("/models"), _, entity, _) =>
-      val modelBroker = ModelBroker.createActor(context)
+//      val modelBroker = ModelBroker.createActor(context)
       modelStorage match {
-        case Some(modelStorageActor) => modelBroker ! GetAllKeysInStorage(modelStorageActor, sender)
+        case Some(modelStorageActor) => storageActors.modelBroker ! GetAllKeysInStorage(modelStorageActor, sender)
         case None => sender ! HttpResponse(
           entity = "Model storage not yet initialized",
           headers = List(Connection("close"))
