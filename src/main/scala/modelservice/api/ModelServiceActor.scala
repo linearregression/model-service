@@ -14,13 +14,13 @@ import spray.http.HttpHeaders._
 import spray.http._
 import scala.concurrent.duration._
 //import modelservice.core.ModelParser.ParseParametersAndStore
-import modelservice.core.{ActorSet, FeatureParser, ModelParser}
+import modelservice.core.{CoreActors, FeatureParser, ModelParser}
 import modelservice.storage.{ModelBroker, ModelStorage}
 
 /**
  * REST actor to pass requests, initialize and maintain storage
  */
-class ModelServiceActor(actorSet: ActorSet) extends Actor with ActorLogging {
+class ModelServiceActor(coreActors: CoreActors) extends Actor with ActorLogging {
   import ModelParser._
   import FeatureParser._
   import ModelStorage._
@@ -79,7 +79,7 @@ class ModelServiceActor(actorSet: ActorSet) extends Actor with ActorLogging {
       modelStorage match {
         case Some(modelStorageActor) => {
 //          val parseActor = context actorOf Props(new FeatureParser(Boot.treePredictionActors)).withRouter(RoundRobinRouter(nrOfInstances = 8))
-          actorSet.parseActor ! ParseFeatures(entity, modelKey, paramKey, modelStorageActor, sender)
+          coreActors.parseActor ! ParseFeatures(entity, modelKey, paramKey, modelStorageActor, sender)
         }
         case None => sender ! HttpResponse(
           entity = "Model storage not yet initialized",

@@ -1,6 +1,6 @@
 package modelservice.core.prediction
 
-import modelservice.Boot
+//import modelservice.Boot
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -18,7 +18,7 @@ import org.json4s._
 import org.json4s.jackson.Serialization
 import breeze.linalg.SparseVector
 
-import modelservice.core.{ActorSet, HashFeatureManager}
+import modelservice.core.HashFeatureManager
 import modelservice.storage.{ModelStorage, ParameterStorage}
 
 /**
@@ -26,7 +26,7 @@ import modelservice.storage.{ModelStorage, ParameterStorage}
  *
  * Retrieves the appropriate model from storage and kicks off tree prediction
  */
-class TreePredictionActor(actorSet: ActorSet) extends Actor with ActorLogging with RequiresMessageQueue[BoundedMessageQueueSemantics] {
+class TreePredictionActor(predictionActors: PredictionActors) extends Actor with ActorLogging with RequiresMessageQueue[BoundedMessageQueueSemantics] {
   import ModelStorage._
   import ParameterStorage._
   import TreePredictionActor._
@@ -97,7 +97,7 @@ class TreePredictionActor(actorSet: ActorSet) extends Actor with ActorLogging wi
               val validModel = ValidModel(weights, featureManager)
 
               // Launch tree prediction
-              val predictionFuture = Boot.treePredictionNodes ?
+              val predictionFuture = predictionActors.treePredictionNodes ?
                 NodePredict(freeVariables, boundVariables, Map[String, Any](), validModel, Map[String, Any]())
 
               // Collect predictions and serve to client

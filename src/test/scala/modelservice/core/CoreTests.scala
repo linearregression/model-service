@@ -1,80 +1,23 @@
-import modelservice.core.prediction.TreePredictionActor.PredictTree
-
-import scala.concurrent.duration._
+package modelservice.core
 
 import akka.actor._
 import modelservice.storage.ModelBroker.{BasicFeatureManager, FeatureManagerWithKey, StoreFeatureManagerWithKey}
-import modelservice.core.prediction.TreePredictionNode
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
-import akka.testkit.{DefaultTimeout, ImplicitSender, TestKit, TestActorRef, TestProbe}
-import spray.http.{HttpData, HttpEntity}
+import modelservice.core.prediction.{PredictionActors, TreePredictionNode}
 
 
 /**
- * Test the core actors
+ * Support for core tests
  */
-class CoreTests extends TestKit(ActorSystem("CoreTestActorSystem")) with DefaultTimeout with ImplicitSender
-  with WordSpecLike with Matchers with BeforeAndAfterAll {
-  import modelservice.core.{FeatureParser, ModelParser}
-  import CoreTests._
-  import TreePredictionNode._
-
-  // Shut down the test actor system upon completion of tests
-  override def afterAll {
-    TestKit.shutdownActorSystem(system)
-  }
-
-  val modelBrokerProbe1 = TestProbe()
-  val predictionProbe1 = TestProbe()
-
-  val dummyPredictionActor = DummyPredictionActor.createActor(predictionProbe1.ref)(system)
-
-  val modelParser = system actorOf Props(classOf[ModelParser], DummyModelBrokerActor.createActor(modelBrokerProbe1.ref))
-  val featureParser = system actorOf Props(classOf[FeatureParser], dummyPredictionActor)
-
-
-  "A ModelParser" should {
-    "Parse a model" in {
-      val dummyActor1 = system actorOf Props[DummyActor]
-      val dummyActor2 = system actorOf Props[DummyActor]
-      val mReq = ModelParser.ParseModelAndStore(HttpEntity(testModelJSON), Some("m_key"), dummyActor1, dummyActor2)
-      modelParser ! mReq
-      modelBrokerProbe1.expectMsg(500 millis, Success)
-    }
-  }
-
-  "A FeatureParser" should {
-    "Parse a feature vector" in {
-      val dummyActor1 = system actorOf Props[DummyActor]
-      val dummyActor2 = system actorOf Props[DummyActor]
-      val fReq = FeatureParser.ParseFeatures(HttpEntity(testFeatureSetJSON), Some("m_key"), Some("p_key"), dummyActor1, dummyActor2)
-      featureParser ! fReq
-      predictionProbe1.expectMsg(500 millis, Success)
-    }
-  }
-
-  "A TreePredictionNode" should {
-    "Cross product child node flattened feature sets" in {
-      crossProduct(combineChildNodes)(childNodesTestPropertiesFlattened) shouldEqual
-        childNodesTestPropertiesFlattenedCrossProductExpectedResult
-    }
-
-    "Predict a logistic function" in {
-      val logistic_1 = logisticFunction(1)
-      val logistic_neg_1 = logisticFunction(-1)
-
-      logisticFunction(0) shouldEqual 0.5
-      math.abs(0.7310585786 - logistic_1) < math.pow(10, -8) shouldBe true
-      math.abs(0.2689414214 - logistic_neg_1) < math.pow(10, -8) shouldBe true
-    }
-  }
-}
-
 object CoreTests {
   import TreePredictionNode._
 
   case class Success()
+
+  class DummyActor extends Actor {
+    def receive = {
+      case () => {}
+    }
+  }
 
   val testFeatureSetJSON =
     """
@@ -296,12 +239,6 @@ object CoreTests {
   )
 }
 
-class DummyActor extends Actor {
-  def receive = {
-    case () => {}
-  }
-}
-
 class DummyModelBrokerActor(nextActor: ActorRef) extends Actor with ActorLogging {
   def receive = {
     case StoreFeatureManagerWithKey(FeatureManagerWithKey(key: String, basicModel: BasicFeatureManager),
@@ -317,22 +254,5 @@ class DummyModelBrokerActor(nextActor: ActorRef) extends Actor with ActorLogging
 object DummyModelBrokerActor {
   def createActor(nextActor: ActorRef) = (actorRefFactory: ActorRefFactory) => {
     actorRefFactory actorOf Props(classOf[DummyModelBrokerActor], nextActor)
-  }
-}
-
-class DummyPredictionActor(nextActor: ActorRef) extends Actor with ActorLogging {
-  def receive = {
-    case PredictTree(parsedContext, Some(modelKey), Some(paramKey), modelStorage, client) => {
-      log.info("DummyPredictionActor received PredictTree")
-      if (modelKey == "m_key" & paramKey == "p_key" & parsedContext.nonEmpty) {
-        nextActor ! CoreTests.Success
-      }
-    }
-  }
-}
-
-object DummyPredictionActor {
-  def createActor(nextActor: ActorRef) = (actorRefFactory: ActorRefFactory) => {
-    actorRefFactory actorOf Props(classOf[DummyPredictionActor], nextActor)
   }
 }
