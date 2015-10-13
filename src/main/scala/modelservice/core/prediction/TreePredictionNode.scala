@@ -1,6 +1,7 @@
 package modelservice.core.prediction
 
 import modelservice.Boot
+import modelservice.core.ActorSet
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -17,7 +18,7 @@ import modelservice.core.prediction.TreePredictionActor.ValidModel
 /**
  * Node actor in prediction tree
  */
-class TreePredictionNode extends Actor with RequiresMessageQueue[BoundedMessageQueueSemantics] {
+class TreePredictionNode(actorSet: ActorSet) extends Actor with RequiresMessageQueue[BoundedMessageQueueSemantics] {
   import TreePredictionNode._
 
   implicit val timeout: Timeout = 1.second
@@ -77,7 +78,7 @@ class TreePredictionNode extends Actor with RequiresMessageQueue[BoundedMessageQ
 
         // Launch recursive node actors
         val treeTraversalFutures = nodeCrossProduct.map { x =>
-          Boot.treePredictionNodes ?
+          actorSet.treePredictionNodes ?
             NodePredict(x.childrenKV, boundVars, nodeFreeVars ++ x.flattenedKV, model, decisionVars ++ x.decisionVars)
         }
 

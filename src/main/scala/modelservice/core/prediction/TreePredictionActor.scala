@@ -18,7 +18,7 @@ import org.json4s._
 import org.json4s.jackson.Serialization
 import breeze.linalg.SparseVector
 
-import modelservice.core.HashFeatureManager
+import modelservice.core.{ActorSet, HashFeatureManager}
 import modelservice.storage.{ModelStorage, ParameterStorage}
 
 /**
@@ -26,7 +26,7 @@ import modelservice.storage.{ModelStorage, ParameterStorage}
  *
  * Retrieves the appropriate model from storage and kicks off tree prediction
  */
-class TreePredictionActor extends Actor with ActorLogging with RequiresMessageQueue[BoundedMessageQueueSemantics] {
+class TreePredictionActor(actorSet: ActorSet) extends Actor with ActorLogging with RequiresMessageQueue[BoundedMessageQueueSemantics] {
   import ModelStorage._
   import ParameterStorage._
   import TreePredictionActor._
