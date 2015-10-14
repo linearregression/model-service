@@ -45,14 +45,16 @@ class TreePredictionNode(predictionActors: PredictionActors) extends Actor with 
         val expectedValue = model.hashFeatureManager.getExpectedValue(prediction, leafVars)
         sender() ! Seq(PredictionResult(decisionVars, expectedValue))
       } else {
-        // Generate all the possible futures from this node with cross products of any branches beginning here
-
-        // Flatten child nodes directly accessible from the current node. ie:
-        // {"color": ["red", "blue"], "shape": ["round", "square"], "publisher_id": {"abc123": { ... } ... }}
-        // becomes
-        // [[({"color": "red"}, {}), ({"color": "blue"}, {})],
-        //  [({"shape": "round"}, {}), ({"shape": "square"}, {})],
-        //  [({"publisher_id": "abc123"}, { ... })]]
+        /**
+         * Generate all the possible futures from this node with cross products of any branches beginning here
+         *
+         * Flatten child nodes directly accessible from the current node. ie:
+         * {"color": ["red", "blue"], "shape": ["round", "square"], "publisher_id": {"abc123": { ... } ... }}
+         * becomes
+         * [[({"color": "red"}, {}), ({"color": "blue"}, {})],
+         *  [({"shape": "round"}, {}), ({"shape": "square"}, {})],
+         *  [({"publisher_id": "abc123"}, { ... })]]
+         */
         val nodeKV = childrenFreeVars.toSeq.flatMap(x =>
           x._2 match {
             case s: Map[String, Map[String, Any]] => Some(s.toSeq.map(t =>
@@ -64,15 +66,17 @@ class TreePredictionNode(predictionActors: PredictionActors) extends Actor with 
           }
         )
 
-        // Generate the cross product of attribute child nodes. ie:
-        // [[({"color": "red"}, {}), ({"color": "blue"}, {})],
-        //  [({"shape": "round"}, {}), ({"shape": "square"}, {})],
-        //  [({"publisher_id": "abc123"}, { ... })]]
-        // becomes
-        // [({"color": "red", "shape": "round", "publisher_id", "abc123"}, { ... }],
-        //  ({"color": "red", "shape": "square", "publisher_id", "abc123"}, { ... }],
-        //  ({"color": "blue", "shape": "round", "publisher_id", "abc123"}, { ... }],
-        //  ({"color": "blue", "shape": "square", "publisher_id", "abc123"}, { ... }]
+        /**
+         * Generate the cross product of attribute child nodes. ie:
+         * [[({"color": "red"}, {}), ({"color": "blue"}, {})],
+         *  [({"shape": "round"}, {}), ({"shape": "square"}, {})],
+         *  [({"publisher_id": "abc123"}, { ... })]]
+         * becomes
+         * [({"color": "red", "shape": "round", "publisher_id", "abc123"}, { ... }],
+         *  ({"color": "red", "shape": "square", "publisher_id", "abc123"}, { ... }],
+         *  ({"color": "blue", "shape": "round", "publisher_id", "abc123"}, { ... }],
+         *  ({"color": "blue", "shape": "square", "publisher_id", "abc123"}, { ... }]
+         */
         val nodeCrossProduct = crossProduct(combineChildNodes)(nodeKV)
 
         // Launch recursive node actors
