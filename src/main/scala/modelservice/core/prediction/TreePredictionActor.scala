@@ -1,7 +1,5 @@
 package modelservice.core.prediction
 
-//import modelservice.Boot
-
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 

@@ -1,16 +1,13 @@
 package modelservice.core.prediction
 
-//import modelservice.Boot
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{OneForOneStrategy, Actor, Props}
+import akka.actor.{OneForOneStrategy, Actor}
 import akka.dispatch.RequiresMessageQueue
 import akka.dispatch.BoundedMessageQueueSemantics
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
-import akka.routing.RoundRobinRouter
 import breeze.linalg.SparseVector
 import modelservice.core.prediction.TreePredictionActor.ValidModel
 
