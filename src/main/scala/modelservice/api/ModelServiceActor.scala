@@ -77,7 +77,6 @@ class ModelServiceActor(coreActors: CoreActors, storageActors: StorageActors) ex
 
       modelStorage match {
         case Some(modelStorageActor) => {
-//          val parseActor = context actorOf Props(new FeatureParser(Boot.treePredictionActors)).withRouter(RoundRobinRouter(nrOfInstances = 8))
           coreActors.parseActor ! ParseFeatures(entity, modelKey, paramKey, modelStorageActor, sender)
         }
         case None => sender ! HttpResponse(
@@ -93,7 +92,6 @@ class ModelServiceActor(coreActors: CoreActors, storageActors: StorageActors) ex
      * Returns a key for the given model
      */
     case HttpRequest(POST, Uri.Path("/models"), _, entity, _) =>
-//      val parseActor = context actorOf Props(new ModelParser())
       modelStorage match {
         case Some(modelStorageActor) => coreActors.modelParser ! ParseModelAndStore(entity, None, modelStorageActor, sender)
         case None => sender ! HttpResponse(
@@ -115,7 +113,6 @@ class ModelServiceActor(coreActors: CoreActors, storageActors: StorageActors) ex
       }
       modelKey match {
         case Some(key) => {
-//          val parseActor = context actorOf Props(new ModelParser())
           modelStorage match {
             case Some(modelStorageActor) => {
               val paramKey = try {
@@ -148,7 +145,6 @@ class ModelServiceActor(coreActors: CoreActors, storageActors: StorageActors) ex
      * Returns a list of currently stored models
      */
     case HttpRequest(GET, Uri.Path("/models"), _, entity, _) =>
-//      val modelBroker = ModelBroker.createActor(context)
       modelStorage match {
         case Some(modelStorageActor) => storageActors.modelBroker ! GetAllKeysInStorage(modelStorageActor, sender)
         case None => sender ! HttpResponse(
