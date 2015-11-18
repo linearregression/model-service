@@ -80,6 +80,7 @@ class TreePredictionNode(predictionActors: PredictionActors) extends Actor with 
          *  ({"color": "red", "shape": "square", "publisher_id", "abc123"}, { ... }],
          *  ({"color": "blue", "shape": "round", "publisher_id", "abc123"}, { ... }],
          *  ({"color": "blue", "shape": "square", "publisher_id", "abc123"}, { ... }]
+         * ]
          * }}}
          */
         val nodeCrossProduct = crossProduct(combineChildNodes)(nodeKV)
