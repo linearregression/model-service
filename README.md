@@ -64,6 +64,22 @@ This creates a namespace for model parameters to be loaded and used for predicti
 
     {"model_namespace": "model_1", "created_at": <DateTime>}
 
+To view loaded models:
+
+    curl -H 'Accept: application/json' -X GET http://0.0.0.0:8080/models
+
+This should return
+
+    {
+        "model_1": {
+            "created_at": <DateTime>,
+            "modified_at": <DateTime>,
+            "last_added": "parameters_1",
+            "parameters": [
+                "parameters_1"
+            ]
+        }
+    }
 
 Models consist of a feature manager and a set of parameters, where the feature manager
 specifies the size of the parameter vector in terms of 2^k, the label to expect, 
@@ -103,8 +119,10 @@ will recursively be flattened, with a cross product performed at each level of t
       ({"color": "blue", "shape": "square", "publisher_id", "abc123"}, { ... }]
     ]
 
-and a prediction will be returned for each expanded row.
+and a prediction will be returned for each expanded row. Predictions can be made by POST
+request to the ```/predict/<model_key>/<parameter_key>``` interface.  If ```<model_key>``` or 
+```<parameter_key>``` are not specified, the most recently used key(s) will be used.
 
-This chart shows the high level structure of the model service for a single node
+This chart shows the high level internal structure of the model service for a single node
 
 ![model service chart](/../static_resources/docs/images/model_service_chart.png?raw=true "Model Service Chart")
