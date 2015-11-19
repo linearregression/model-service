@@ -1,3 +1,5 @@
+# Model Service [![Status](https://circleci.com/gh/kiip/model-service.png?circle-token=aa1f134faf12b56ad296a4bf50be37ee056bce1c)](https://circleci.com/gh/kiip/model-service)
+
 Store and serve models trained from [fitbox](http://github.com/cdgore/fitbox)
 
 
@@ -125,4 +127,4 @@ request to the ```/predict/<model_key>/<parameter_key>``` interface.  If ```<mod
 
 This chart shows the high level internal structure of the model service for a single node
 
-![model service chart](/../static_resources/docs/images/model_service_chart.png?raw=true "Model Service Chart")
+<img src="/../static_resources/docs/images/model_service_chart.png?raw=true" width="650" height="854">
